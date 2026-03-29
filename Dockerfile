@@ -33,6 +33,7 @@ COPY --from=build --chown=appuser:appgroup /app/package.json ./
 USER appuser
 
 ENV NODE_ENV=production
+ENV APP_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000

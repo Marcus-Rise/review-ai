@@ -19,7 +19,8 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
         pinoHttp: {
           level: config.get<string>('LOG_LEVEL', 'info'),
           transport:
-            config.get<string>('APP_ENV', 'development') === 'development'
+            config.get<string>('APP_ENV', config.get<string>('NODE_ENV', 'development')) ===
+            'development'
               ? { target: 'pino-pretty', options: { colorize: true } }
               : undefined,
           redact: {
