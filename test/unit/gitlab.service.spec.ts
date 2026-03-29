@@ -90,6 +90,18 @@ describe('GitLabService', () => {
     );
   });
 
+  it('should stop fetching discussions after 20 pages', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve(Array.from({ length: 100 }, (_, i) => ({ id: `d${i}`, notes: [] }))),
+    });
+
+    const result = await service.getDiscussions(config);
+    expect(global.fetch).toHaveBeenCalledTimes(20);
+    expect(result).toHaveLength(2000);
+  });
+
   it('should encode project path in URL', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,

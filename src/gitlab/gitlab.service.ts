@@ -58,12 +58,14 @@ export class GitLabService {
     return result.changes;
   }
 
+  private static readonly MAX_PAGES = 20;
+
   async getDiscussions(config: GitLabConfig): Promise<GitLabDiscussion[]> {
     const discussions: GitLabDiscussion[] = [];
     let page = 1;
     const perPage = 100;
 
-    while (true) {
+    while (page <= GitLabService.MAX_PAGES) {
       const url = this.buildUrl(
         config,
         `/merge_requests/${config.mr_iid}/discussions?per_page=${perPage}&page=${page}`,
