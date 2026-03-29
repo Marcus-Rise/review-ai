@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { GitLabService } from '../gitlab/gitlab.service';
 import { GitLabConfig } from '../common/interfaces';
 import {
@@ -27,6 +27,12 @@ export class ContextBuilderService {
       this.gitlab.getDiscussions(gitlabConfig),
       this.gitlab.getMrDiffVersions(gitlabConfig),
     ]);
+
+    if (mr.state === 'closed' || mr.state === 'merged') {
+      throw new BadRequestException(
+        `MR !${gitlabConfig.mr_iid} is ${mr.state} — review only allowed on opened MRs`,
+      );
+    }
 
     const latestVersion = versions[0];
     const diffRefs = {
