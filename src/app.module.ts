@@ -5,12 +5,15 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ReviewModule } from './review/review.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
+import { TimeoutInterceptor } from './common/timeout.interceptor';
+import { envValidation } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      validationSchema: envValidation,
     }),
     LoggerModule.forRootAsync({
       imports: [ConfigModule],
@@ -39,5 +42,6 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
     ReviewModule,
     RateLimitModule,
   ],
+  providers: [TimeoutInterceptor],
 })
 export class AppModule {}

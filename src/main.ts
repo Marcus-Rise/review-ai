@@ -6,13 +6,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { RequestIdInterceptor } from './common/request-id.interceptor';
+import { TimeoutInterceptor } from './common/timeout.interceptor';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
 async function bootstrap() {
+  const configService = new ConfigService();
+  const bodyLimit = configService.get<number>('REQUEST_BODY_LIMIT', 1024 * 1024);
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      bodyLimit: 1024 * 1024, // 1MB default, overridden by config
+      bodyLimit,
       trustProxy: true,
     }),
     { bufferLogs: true },
@@ -21,11 +25,11 @@ async function bootstrap() {
   const logger = app.get(Logger);
   app.useLogger(logger);
 
-  const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT', 3000);
-  const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED', 'true') === 'true';
+  const appConfigService = app.get(ConfigService);
+  const port = appConfigService.get<number>('PORT', 3000);
+  const swaggerEnabled = appConfigService.get<string>('SWAGGER_ENABLED', 'true') === 'true';
 
-  app.useGlobalInterceptors(new RequestIdInterceptor());
+  app.useGlobalInterceptors(new RequestIdInterceptor(), app.get(TimeoutInterceptor));
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.useGlobalPipes(

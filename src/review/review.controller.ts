@@ -72,7 +72,7 @@ export class ReviewController {
         ],
       },
       review_modes: ['mr'],
-      review_profiles: ['default'],
+      review_profiles: ['default', 'security', 'thorough'],
     };
   }
 }

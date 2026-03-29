@@ -59,7 +59,7 @@ export class ReviewOptionsDto {
 
   @ApiProperty({ description: 'Review profile', default: 'default' })
   @IsString()
-  @IsIn(['default'])
+  @IsIn(['default', 'security', 'thorough'])
   profile: string = 'default';
 
   @ApiPropertyOptional({

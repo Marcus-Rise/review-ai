@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ModelFinding } from '../common/interfaces';
 import { ChatCompletionRequest, ChatCompletionResponse, ModelFindingsOutput } from './model.types';
-import { SYSTEM_PROMPT, buildUserPrompt } from './prompts/system-prompt';
+import { getSystemPrompt, buildUserPrompt } from './prompts/system-prompt';
 import { ReviewPacket } from '../review/review-packet.interface';
 
 @Injectable()
@@ -22,10 +22,12 @@ export class ModelService {
     const url = `${endpoint}/v1/chat/completions`;
     const userPrompt = buildUserPrompt(packet);
 
+    const systemPrompt = getSystemPrompt(packet.review_profile);
+
     const requestBody: ChatCompletionRequest = {
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.1,
