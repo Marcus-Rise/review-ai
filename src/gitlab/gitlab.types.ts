@@ -72,5 +72,5 @@ export interface GitLabDiffPositionPayload {
 
 export interface CreateDiscussionPayload {
   body: string;
-  position: GitLabDiffPositionPayload;
+  position?: GitLabDiffPositionPayload;
 }

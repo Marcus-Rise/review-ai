@@ -102,13 +102,22 @@ export class PublisherService {
     };
 
     const payload: CreateDiscussionPayload = { body, position };
-    const discussion = await this.gitlab.createDiscussion(config, payload);
 
-    return {
-      action,
-      success: true,
-      discussion_id: discussion.id,
-    };
+    try {
+      const discussion = await this.gitlab.createDiscussion(config, payload);
+      return { action, success: true, discussion_id: discussion.id };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes('400')) throw err;
+
+      // Line is outside the diff hunks — fall back to a general MR note
+      this.logger.warn(
+        `Inline note rejected for ${finding.file_path}:${finding.line} (line not in diff), posting as general note`,
+      );
+      const fallbackBody = `> **${finding.file_path}:${finding.line}**\n\n${this.formatDiscussionBody(finding)}`;
+      const discussion = await this.gitlab.createDiscussion(config, { body: fallbackBody });
+      return { action, success: true, discussion_id: discussion.id };
+    }
   }
 
   private formatDiscussionBody(finding: import('../common/interfaces').ModelFinding): string {

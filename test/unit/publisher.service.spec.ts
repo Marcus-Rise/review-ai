@@ -88,6 +88,35 @@ describe('PublisherService', () => {
     );
   });
 
+  it('should fall back to general note when inline position is rejected with 400', async () => {
+    (gitlabService.createDiscussion as jest.Mock)
+      .mockRejectedValueOnce(new Error('GitLab API returned 400: line_code can\'t be blank'))
+      .mockResolvedValueOnce({ id: 'fallback-disc-1' });
+
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: baseFinding, reason: 'New' },
+    ];
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(results[0].success).toBe(true);
+    expect(results[0].discussion_id).toBe('fallback-disc-1');
+    expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(2);
+    const fallbackCall = (gitlabService.createDiscussion as jest.Mock).mock.calls[1];
+    expect(fallbackCall[1].position).toBeUndefined();
+    expect(fallbackCall[1].body).toContain('src/foo.ts:10');
+  });
+
+  it('should rethrow non-400 errors without fallback', async () => {
+    (gitlabService.createDiscussion as jest.Mock).mockRejectedValueOnce(
+      new Error('GitLab API returned 500: Internal Server Error'),
+    );
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: baseFinding, reason: 'New' },
+    ];
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(results[0].success).toBe(false);
+    expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
+  });
+
   it('should create discussion with suggestion', async () => {
     const findingWithSugg: ModelFinding = {
       ...baseFinding,
