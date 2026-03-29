@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ContextBuilderService } from './context-builder.service';
 import { ModelService } from '../model/model.service';
 import { DecisionEngineService } from '../publish/decision-engine.service';
@@ -29,9 +29,12 @@ export class ReviewService {
     client: ClientConfig,
     idempotencyKey?: string,
   ): Promise<ReviewResponse> {
-    // Idempotency check
-    if (idempotencyKey) {
-      const cached = this.idempotencyService.getCached(idempotencyKey);
+    // Idempotency check — scope key by client_id to prevent cross-client cache collisions
+    const scopedIdempotencyKey = idempotencyKey
+      ? `${client.client_id}:${idempotencyKey}`
+      : undefined;
+    if (scopedIdempotencyKey) {
+      const cached = this.idempotencyService.getCached(scopedIdempotencyKey);
       if (cached) {
         this.logger.log(`Returning cached response for idempotency key: ${idempotencyKey}`);
         return cached as ReviewResponse;
@@ -49,8 +52,9 @@ export class ReviewService {
     );
 
     if (!rateLimit.allowed) {
-      throw new BadRequestException(
+      throw new HttpException(
         `Rate limit exceeded. Retry after ${rateLimit.retryAfterSeconds} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
@@ -103,7 +107,9 @@ export class ReviewService {
         actions_published: results.filter(
           (r) => r.success && r.action.decision !== 'skip' && !dto.review.dry_run,
         ).length,
-        replies_posted: results.filter((r) => r.success && r.action.decision === 'reply').length,
+        replies_posted: results.filter(
+          (r) => r.success && r.action.decision === 'reply' && !dto.review.dry_run,
+        ).length,
         skipped_duplicates: results.filter((r) => r.action.decision === 'skip').length,
         dry_run: dto.review.dry_run,
       },
@@ -112,8 +118,8 @@ export class ReviewService {
     };
 
     // Store in idempotency cache
-    if (idempotencyKey) {
-      this.idempotencyService.store(idempotencyKey, response);
+    if (scopedIdempotencyKey) {
+      this.idempotencyService.store(scopedIdempotencyKey, response);
     }
 
     return response;
