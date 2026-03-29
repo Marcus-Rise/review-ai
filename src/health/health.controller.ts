@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { FastifyReply } from 'fastify';
 import { ClientsConfigService } from '../auth/clients-config.service';
 
 @ApiTags('Health')
@@ -22,7 +23,7 @@ export class HealthController {
   @ApiOperation({ summary: 'Readiness check' })
   @ApiResponse({ status: 200, description: 'Service is ready' })
   @ApiResponse({ status: 503, description: 'Service is not ready' })
-  readyz() {
+  readyz(@Res() res: FastifyReply) {
     const checks: Record<string, boolean> = {
       clients_loaded: this.clientsConfig.isLoaded(),
       model_endpoint_configured: !!this.configService.get<string>('MODEL_ENDPOINT'),
@@ -31,10 +32,10 @@ export class HealthController {
 
     const ready = Object.values(checks).every(Boolean);
 
-    return {
+    res.status(ready ? 200 : 503).send({
       status: ready ? 'ready' : 'not_ready',
       checks,
       timestamp: new Date().toISOString(),
-    };
+    });
   }
 }
