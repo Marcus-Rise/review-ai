@@ -91,7 +91,7 @@ describe('PublisherService', () => {
 
   it('should fall back to general note when inline position is rejected with 400', async () => {
     (gitlabService.createDiscussion as jest.Mock)
-      .mockRejectedValueOnce(new Error('GitLab API returned 400: line_code can\'t be blank'))
+      .mockRejectedValueOnce(new Error("GitLab API returned 400: line_code can't be blank"))
       .mockResolvedValueOnce({ id: 'fallback-disc-1' });
 
     const actions: PublishAction[] = [
