@@ -59,8 +59,14 @@ export class PublisherService {
             : action.decision === 'new_discussion_with_suggestion'
               ? this.formatSuggestionBody(action.finding)
               : this.formatDiscussionBody(action.finding);
+        const effectiveType =
+          action.decision === 'reply' && !action.existing_discussion_id
+            ? 'new_discussion'
+            : action.decision === 'reply'
+              ? 'reply'
+              : action.decision;
         reviewActions.push({
-          type: action.decision === 'reply' ? 'reply' : action.decision,
+          type: effectiveType,
           path: action.finding.file_path,
           line: action.finding.line,
           discussion_id: result.discussion_id || action.existing_discussion_id,
@@ -97,6 +103,12 @@ export class PublisherService {
         success: true,
         discussion_id: action.existing_discussion_id,
       };
+    }
+
+    if (decision === 'reply' && !action.existing_discussion_id) {
+      this.logger.warn(
+        `reply without existing_discussion_id for ${finding.file_path}:${finding.line} — creating new discussion instead`,
+      );
     }
 
     // New discussion or new discussion with suggestion

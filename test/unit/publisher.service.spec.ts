@@ -126,6 +126,23 @@ describe('PublisherService', () => {
     );
   });
 
+  it('should warn and create new discussion when reply has no existing_discussion_id', async () => {
+    const actions: PublishAction[] = [{ decision: 'reply', finding: baseFinding, reason: 'Reply' }];
+    const { results, reviewActions } = await publisher.publish(
+      actions,
+      mockGitlab,
+      diffRefs,
+      false,
+    );
+    expect(results[0].success).toBe(true);
+    expect(gitlabService.replyToDiscussion).not.toHaveBeenCalled();
+    expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
+    expect(reviewActions[0].type).toBe('new_discussion');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('reply without existing_discussion_id'),
+    );
+  });
+
   it('should rethrow non-400 errors without fallback', async () => {
     (gitlabService.createDiscussion as jest.Mock).mockRejectedValueOnce(
       new Error('GitLab API returned 500: Internal Server Error'),
