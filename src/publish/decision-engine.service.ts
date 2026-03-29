@@ -108,7 +108,9 @@ export class DecisionEngineService {
       );
       const bodyWords = this.normalizeForComparison(d.body).split(/\s+/);
       const overlap = bodyWords.filter((w) => findingWords.has(w)).length;
-      return overlap >= 2;
+      // Relax threshold for concise findings with few significant tokens
+      const threshold = findingWords.size <= 2 ? 1 : 2;
+      return overlap >= threshold;
     });
   }
 

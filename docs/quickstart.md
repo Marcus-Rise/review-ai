@@ -94,6 +94,8 @@ curl -s http://localhost:3000/api/v1/reviews/run \
 ```
 
 > **Start with `dry_run: true`** — the service will show what it _would_ post to GitLab without actually creating any discussions.
+>
+> **Tip:** You can pass the GitLab token via `X-GitLab-Token` header instead of `gitlab.token` in the body.
 
 ### 6. Run a real review
 
@@ -231,17 +233,21 @@ The service caches responses by this key (in-memory, 5 min TTL).
       "reason": "Safe local fix available: correctness"
     }
   ],
-  "warnings": []
+  "warnings": [],
+  "errors": []
 }
 ```
 
 | Field | Meaning |
 |-------|---------|
+| `status` | `"ok"` — all actions succeeded; `"partial"` — some failed (see `errors`); `"error"` — request-level failure |
 | `findings_considered` | Total findings returned by the model |
 | `actions_published` | Discussions/replies actually posted to GitLab |
 | `replies_posted` | Replies to existing discussion threads |
 | `skipped_duplicates` | Findings skipped because an unresolved discussion already covers the topic |
 | `dry_run` | Whether this was a dry run (no GitLab writes) |
+| `warnings` | Context bounding warnings (e.g., files filtered, diffs truncated) |
+| `errors` | Per-action publish failures: `[{ path, line, error }]` |
 
 ## Troubleshooting
 
@@ -253,6 +259,8 @@ The service caches responses by this key (in-memory, 5 min TTL).
 | Model returns empty findings | Model may be too small — try a larger model (7b+) |
 | `Connection refused` on model | Ensure Ollama is running and accessible from the service container |
 | Suggestions not appearing | Only created when the fix is local, small, and safe — not for broad issues |
+| `status: "partial"` in response | Some discussions failed to publish — check `errors` array for details |
+| `warnings` mentions truncation | MR is large; some files/diffs were bounded to fit the model context |
 
 ## Next step: GitLab CI integration
 

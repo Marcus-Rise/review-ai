@@ -57,3 +57,12 @@ pnpm test          # jest unit
 pnpm test:e2e      # jest e2e (requires running deps)
 pnpm build         # nest build
 ```
+
+## Documentation consistency
+
+After any code change that affects public API contracts, response shapes, request headers, auth behavior, or architectural patterns:
+
+1. Check all docs (`docs/*.md`, `README.md`, `ai-review-service-spec-2.md`) for consistency with the updated code
+2. Update response examples, request schemas, header lists, status values, and error formats
+3. Keep curl examples in `docs/quickstart.md` and `README.md` in sync with the actual DTO/controller signatures
+4. Never leave stale API examples — they mislead integrators more than missing docs

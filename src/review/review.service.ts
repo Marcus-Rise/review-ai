@@ -120,7 +120,12 @@ export class ReviewService {
 
     const response: ReviewResponse = {
       request_id: requestId,
-      status: errors.length > 0 ? 'partial' : 'ok',
+      status:
+        errors.length > 0
+          ? results.some((r) => r.success && r.action.decision !== 'skip')
+            ? 'partial'
+            : 'error'
+          : 'ok',
       summary: {
         findings_considered: findings.length,
         actions_published: results.filter(

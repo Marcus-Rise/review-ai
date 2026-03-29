@@ -160,6 +160,17 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
   }'
 ```
 
+The GitLab token can also be passed via header instead of the body:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/reviews/run \
+  -H "Authorization: Bearer <api_key>" \
+  -H "X-Client-Id: gitlab-review-job" \
+  -H "X-GitLab-Token: glpat-xxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "api_version": "v1", "gitlab": { "base_url": "...", "project_path": "...", "mr_iid": 123 }, "review": { "mode": "mr" } }'
+```
+
 ### Response
 
 ```json
@@ -174,9 +185,12 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
     "dry_run": false
   },
   "actions": [...],
-  "warnings": []
+  "warnings": [],
+  "errors": []
 }
 ```
+
+`status` is `"ok"`, `"partial"` (some actions failed to publish), or `"error"`. When `"partial"`, the `errors` array contains `{ path, line, error }` entries for each failed action.
 
 ## GitLab CI Integration
 
@@ -191,7 +205,7 @@ Required CI/CD secret variables:
 ## Security
 
 - API key + client ID authentication
-- Optional HMAC-SHA256 request signing
+- Optional HMAC-SHA256 request signing (both timestamp and signature headers required when using HMAC)
 - Per-client rate limits and endpoint allowlists
 - GitLab tokens handled in-memory only, never logged
 - User focus field sanitized against prompt injection
