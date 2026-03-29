@@ -15,6 +15,9 @@ export class ReviewActionDto {
 
   @ApiProperty()
   reason!: string;
+
+  @ApiProperty({ required: false })
+  body?: string;
 }
 
 export class ReviewSummaryDto {

@@ -53,12 +53,19 @@ export class PublisherService {
       try {
         const result = await this.executeAction(action, gitlabConfig, diffRefs);
         results.push(result);
+        const body =
+          action.decision === 'reply'
+            ? this.formatReplyBody(action.finding)
+            : action.decision === 'new_discussion_with_suggestion'
+              ? this.formatSuggestionBody(action.finding)
+              : this.formatDiscussionBody(action.finding);
         reviewActions.push({
           type: action.decision === 'reply' ? 'reply' : action.decision,
           path: action.finding.file_path,
           line: action.finding.line,
           discussion_id: result.discussion_id || action.existing_discussion_id,
           reason: action.reason,
+          body,
         });
       } catch (error) {
         this.logger.error(

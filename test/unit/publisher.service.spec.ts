@@ -71,6 +71,37 @@ describe('PublisherService', () => {
     expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
   });
 
+  it('should populate body in reviewActions for real (non-dry-run) new_discussion', async () => {
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: baseFinding, reason: 'New' },
+    ];
+    const { reviewActions } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(reviewActions[0].body).toBeDefined();
+    expect(reviewActions[0].body).toContain(baseFinding.risk_statement);
+  });
+
+  it('should populate body in reviewActions for real (non-dry-run) reply', async () => {
+    const actions: PublishAction[] = [
+      {
+        decision: 'reply',
+        finding: baseFinding,
+        existing_discussion_id: 'disc-1',
+        reason: 'Reply',
+      },
+    ];
+    const { reviewActions } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(reviewActions[0].body).toBeDefined();
+    expect(reviewActions[0].body).toContain(baseFinding.risk_statement);
+  });
+
+  it('should not populate body for skip actions', async () => {
+    const actions: PublishAction[] = [
+      { decision: 'skip', finding: baseFinding, reason: 'Duplicate' },
+    ];
+    const { reviewActions } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(reviewActions[0].body).toBeUndefined();
+  });
+
   it('should reply to existing discussion', async () => {
     const actions: PublishAction[] = [
       {

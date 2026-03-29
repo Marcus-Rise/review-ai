@@ -14,3 +14,12 @@ paths:
 - Coverage: `pnpm test:cov`
 - Prefer `jest.fn()` stubs over deep mocking frameworks
 - Test one behavior per `it()` block; describe block = class or method under test
+
+## TDD workflow (mandatory)
+
+Always write the failing test first, then implement the fix:
+1. Write test → verify it fails (`pnpm test`)
+2. Implement fix → verify test passes
+3. Run full suite → no regressions
+
+Order: e2e first if the behavior is observable at HTTP level, integration if it needs wired deps, unit otherwise.
