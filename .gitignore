@@ -6,3 +6,4 @@ coverage/
 .pnpm-store/
 secrets/*.json
 !secrets/clients.example.json
+/.claude/settings.local.json

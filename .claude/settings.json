@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm start*)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(glab *)",
+      "Bash(bash .claude/skills/*)",
+      "Write(.claude/**)",
+      "Edit(.claude/**)",
+      "WebFetch(domain:docs.anthropic.com)"
+    ]
+  }
+}
