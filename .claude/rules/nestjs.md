@@ -17,3 +17,4 @@ paths:
 - `process.env` and `ConfigService.get()` always return **strings** — always parseInt/parseFloat when a number is needed (e.g. Fastify `bodyLimit` requires integer, not string)
 - When passing env values to Fastify options, cast explicitly — Fastify does strict type checks and throws on string-typed numbers
 - `@nestjs/swagger` with Fastify requires `@fastify/static` as a dependency — without it `SwaggerModule.setup()` crashes the process silently (exit code 1, no log output)
+- Health/readiness endpoints that need custom HTTP status (e.g. 503) must use `@Res() res: FastifyReply` and call `res.status(...).send(...)` — throwing `HttpException` goes through `GlobalExceptionFilter` which rewrites the response body to the error envelope format

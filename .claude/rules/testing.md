@@ -21,5 +21,25 @@ Always write the failing test first, then implement the fix:
 1. Write test → verify it fails (`pnpm test`)
 2. Implement fix → verify test passes
 3. Run full suite → no regressions
+4. Commit + push
 
 Order: e2e first if the behavior is observable at HTTP level, integration if it needs wired deps, unit otherwise.
+
+## Logger mocking in unit tests
+
+Unit tests use a global setup (`test/jest.setup.ts`, registered via `setupFilesAfterEnv` in `jest.config.ts`) that silences `Logger.prototype` output. To assert on logger calls within a test:
+
+```typescript
+import { Logger } from '@nestjs/common';
+
+const errorSpy = jest.spyOn(Logger.prototype, 'error');
+const warnSpy  = jest.spyOn(Logger.prototype, 'warn');
+
+// happy path:
+expect(errorSpy).not.toHaveBeenCalled();
+
+// error path:
+expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('some message'));
+```
+
+`jest.restoreAllMocks()` in `afterEach` (global setup) resets spies between tests.
