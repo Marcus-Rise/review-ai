@@ -10,6 +10,7 @@ const config: Config = {
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

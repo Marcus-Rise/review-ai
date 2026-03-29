@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { PublisherService } from '../../src/publish/publisher.service';
 import { GitLabService } from '../../src/gitlab/gitlab.service';
 import { PublishAction } from '../../src/publish/publish.types';
@@ -27,6 +28,8 @@ const baseFinding: ModelFinding = {
 describe('PublisherService', () => {
   let publisher: PublisherService;
   let gitlabService: GitLabService;
+  let errorSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     gitlabService = {
@@ -34,6 +37,8 @@ describe('PublisherService', () => {
       replyToDiscussion: jest.fn().mockResolvedValue(undefined),
     } as unknown as GitLabService;
     publisher = new PublisherService(gitlabService);
+    errorSpy = jest.spyOn(Logger.prototype, 'error');
+    warnSpy = jest.spyOn(Logger.prototype, 'warn');
   });
 
   it('should skip without calling GitLab', async () => {
@@ -69,6 +74,7 @@ describe('PublisherService', () => {
     expect(results[0].success).toBe(true);
     expect(results[0].discussion_id).toBe('new-disc-1');
     expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it('should populate body in reviewActions for real (non-dry-run) new_discussion', async () => {
@@ -120,6 +126,19 @@ describe('PublisherService', () => {
     );
   });
 
+  it('should rethrow non-400 errors without fallback', async () => {
+    (gitlabService.createDiscussion as jest.Mock).mockRejectedValueOnce(
+      new Error('GitLab API returned 500: Internal Server Error'),
+    );
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: baseFinding, reason: 'New' },
+    ];
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(results[0].success).toBe(false);
+    expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to publish action'));
+  });
+
   it('should fall back to general note when inline position is rejected with 400', async () => {
     (gitlabService.createDiscussion as jest.Mock)
       .mockRejectedValueOnce(new Error("GitLab API returned 400: line_code can't be blank"))
@@ -135,18 +154,8 @@ describe('PublisherService', () => {
     const fallbackCall = (gitlabService.createDiscussion as jest.Mock).mock.calls[1];
     expect(fallbackCall[1].position).toBeUndefined();
     expect(fallbackCall[1].body).toContain('src/foo.ts:10');
-  });
-
-  it('should rethrow non-400 errors without fallback', async () => {
-    (gitlabService.createDiscussion as jest.Mock).mockRejectedValueOnce(
-      new Error('GitLab API returned 500: Internal Server Error'),
-    );
-    const actions: PublishAction[] = [
-      { decision: 'new_discussion', finding: baseFinding, reason: 'New' },
-    ];
-    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
-    expect(results[0].success).toBe(false);
-    expect(gitlabService.createDiscussion).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Inline note rejected'));
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it('should create discussion with suggestion', async () => {

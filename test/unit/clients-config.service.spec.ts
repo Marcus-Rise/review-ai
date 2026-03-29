@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { ClientsConfigService } from '../../src/auth/clients-config.service';
 import { ConfigService } from '@nestjs/config';
 import { writeFile, unlink, mkdir } from 'node:fs/promises';
@@ -8,6 +9,7 @@ describe('ClientsConfigService', () => {
   let service: ClientsConfigService;
   let configService: ConfigService;
   let tmpFile: string;
+  let errorSpy: jest.SpyInstance;
 
   beforeEach(async () => {
     const tmpDir = join(tmpdir(), 'ai-review-test');
@@ -17,6 +19,7 @@ describe('ClientsConfigService', () => {
       get: jest.fn().mockReturnValue(tmpFile),
     } as unknown as ConfigService;
     service = new ClientsConfigService(configService);
+    errorSpy = jest.spyOn(Logger.prototype, 'error');
   });
 
   afterEach(async () => {
@@ -42,11 +45,13 @@ describe('ClientsConfigService', () => {
     expect(service.isLoaded()).toBe(true);
     expect(service.getClient('test')).toBeDefined();
     expect(service.getClient('test')?.api_key).toBe('key123');
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it('should reject config without clients array', async () => {
     await writeFile(tmpFile, JSON.stringify({ invalid: true }));
     await expect(service.loadConfig()).rejects.toThrow('missing "clients" array');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load clients config'));
   });
 
   it('should reject client without client_id', async () => {
