@@ -58,12 +58,12 @@ describe('DecisionEngineService', () => {
     expect(actions[0].decision).toBe('new_discussion');
   });
 
-  it('should reply to nearby unresolved discussion', () => {
+  it('should reply to nearby unresolved discussion with matching category', () => {
     const existing: ExistingDiscussionSummary = {
       discussion_id: 'd2',
       file_path: 'src/foo.ts',
       line: 11, // nearby (within 3 lines)
-      body: 'some other issue',
+      body: 'correctness issue nearby',
       resolved: false,
       author: 'bot',
       fingerprint: 'different-fp',
@@ -81,6 +81,53 @@ describe('DecisionEngineService', () => {
     };
     const actions = engine.decide([findingWithSuggestion], []);
     expect(actions[0].decision).toBe('new_discussion_with_suggestion');
+  });
+
+  it('should NOT skip when existing discussion has same file+line but unrelated topic', () => {
+    const existing: ExistingDiscussionSummary = {
+      discussion_id: 'd1',
+      file_path: 'src/foo.ts',
+      line: 10,
+      body: 'This is a correctness issue with something else entirely different topic',
+      resolved: false,
+      author: 'bot',
+      fingerprint: 'unrelated-fp',
+    };
+    const finding: ModelFinding = {
+      ...baseFinding,
+      risk_statement: 'Array bounds overflow in loop iterator',
+    };
+    const actions = engine.decide([finding], [existing]);
+    expect(actions[0].decision).not.toBe('skip');
+  });
+
+  it('should NOT reply to nearby unresolved discussion with different category', () => {
+    const existing: ExistingDiscussionSummary = {
+      discussion_id: 'd2',
+      file_path: 'src/foo.ts',
+      line: 11,
+      body: 'Security vulnerability: SQL injection risk',
+      resolved: false,
+      author: 'bot',
+      fingerprint: 'other-fp',
+    };
+    const actions = engine.decide([baseFinding], [existing]);
+    expect(actions[0].decision).toBe('new_discussion');
+  });
+
+  it('should reply to nearby unresolved discussion with same category', () => {
+    const existing: ExistingDiscussionSummary = {
+      discussion_id: 'd2',
+      file_path: 'src/foo.ts',
+      line: 11,
+      body: 'correctness: Null check missing here',
+      resolved: false,
+      author: 'bot',
+      fingerprint: 'other-fp',
+    };
+    const actions = engine.decide([baseFinding], [existing]);
+    expect(actions[0].decision).toBe('reply');
+    expect(actions[0].existing_discussion_id).toBe('d2');
   });
 
   it('should not suggest for critical security issues', () => {

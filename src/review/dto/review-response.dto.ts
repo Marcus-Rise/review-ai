@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class PublishErrorDto {
+  @ApiProperty()
+  path!: string;
+
+  @ApiProperty()
+  line!: number;
+
+  @ApiProperty()
+  error!: string;
+}
+
 export class ReviewActionDto {
   @ApiProperty()
   type!: string;
@@ -42,7 +53,7 @@ export class ReviewResponseDto {
   request_id!: string;
 
   @ApiProperty()
-  status!: 'ok' | 'error';
+  status!: 'ok' | 'partial' | 'error';
 
   @ApiProperty({ type: ReviewSummaryDto })
   summary!: ReviewSummaryDto;
@@ -52,4 +63,7 @@ export class ReviewResponseDto {
 
   @ApiProperty({ type: [String] })
   warnings!: string[];
+
+  @ApiProperty({ type: [PublishErrorDto] })
+  errors!: PublishErrorDto[];
 }

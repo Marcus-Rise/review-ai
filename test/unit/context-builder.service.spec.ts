@@ -56,4 +56,111 @@ describe('ContextBuilderService', () => {
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(BadRequestException);
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(/merged/i);
   });
+
+  it('should filter out binary/generated files', async () => {
+    const gitlabService = makeGitlabService('opened');
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue([
+      {
+        new_path: 'src/app.ts',
+        old_path: 'src/app.ts',
+        diff: '+code',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+      {
+        new_path: 'bundle.min.js',
+        old_path: 'bundle.min.js',
+        diff: '+minified',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+      {
+        new_path: 'pnpm-lock.yaml',
+        old_path: 'pnpm-lock.yaml',
+        diff: '+lock',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+      {
+        new_path: 'app.js.map',
+        old_path: 'app.js.map',
+        diff: '+map',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+      {
+        new_path: 'logo.png',
+        old_path: 'logo.png',
+        diff: 'Binary file',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+    ]);
+    const service = new ContextBuilderService(gitlabService);
+    const packet = await service.build(mockGitlab, 'default');
+    expect(packet.changes).toHaveLength(1);
+    expect(packet.changes[0].path).toBe('src/app.ts');
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('filtered')]));
+  });
+
+  it('should truncate individual file diffs exceeding per-file limit', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const largeDiff = 'a'.repeat(15000);
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue([
+      {
+        new_path: 'big.ts',
+        old_path: 'big.ts',
+        diff: largeDiff,
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+    ]);
+    const service = new ContextBuilderService(gitlabService);
+    const packet = await service.build(mockGitlab, 'default');
+    expect(packet.changes[0].diff.length).toBeLessThanOrEqual(10100);
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('truncated')]));
+  });
+
+  it('should limit total files to MAX_FILES', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const manyChanges = Array.from({ length: 60 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: '+line',
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(manyChanges);
+    const service = new ContextBuilderService(gitlabService);
+    const packet = await service.build(mockGitlab, 'default');
+    expect(packet.changes.length).toBeLessThanOrEqual(50);
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('50')]));
+  });
+
+  it('should enforce total diff char limit across all files', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const changes = Array.from({ length: 20 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: 'x'.repeat(8000),
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(changes);
+    const service = new ContextBuilderService(gitlabService);
+    const packet = await service.build(mockGitlab, 'default');
+    const totalChars = packet.changes.reduce((sum, c) => sum + c.diff.length, 0);
+    expect(totalChars).toBeLessThanOrEqual(101000);
+    expect(packet.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('limit reached')]),
+    );
+  });
 });

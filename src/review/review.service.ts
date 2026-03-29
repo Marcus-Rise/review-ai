@@ -46,6 +46,13 @@ export class ReviewService {
       throw new BadRequestException('Either project_path or project_id is required');
     }
 
+    // Validate GitLab token
+    if (!dto.gitlab.token) {
+      throw new BadRequestException(
+        'GitLab token is required (provide in body or X-GitLab-Token header)',
+      );
+    }
+
     // Rate limit check
     const projectPath = dto.gitlab.project_path || String(dto.gitlab.project_id);
     const rateLimit = this.rateLimitService.checkLimit(
@@ -84,6 +91,10 @@ export class ReviewService {
     this.logger.log(`Starting review for MR !${dto.gitlab.mr_iid}`);
     const packet = await this.contextBuilder.build(gitlabConfig, dto.review.profile, userFocus);
 
+    if (packet.warnings?.length) {
+      warnings.push(...packet.warnings);
+    }
+
     // Call model
     const findings = await this.model.analyze(packet);
     this.logger.log(`Model returned ${findings.length} findings`);
@@ -97,11 +108,19 @@ export class ReviewService {
       gitlabConfig,
       packet.diff_refs,
       dto.review.dry_run,
+      packet.changes,
     );
+
+    const failedResults = results.filter((r) => !r.success && r.action.decision !== 'skip');
+    const errors = failedResults.map((r) => ({
+      path: r.action.finding.file_path,
+      line: r.action.finding.line,
+      error: r.error || 'Unknown error',
+    }));
 
     const response: ReviewResponse = {
       request_id: requestId,
-      status: 'ok',
+      status: errors.length > 0 ? 'partial' : 'ok',
       summary: {
         findings_considered: findings.length,
         actions_published: results.filter(
@@ -115,6 +134,7 @@ export class ReviewService {
       },
       actions: reviewActions,
       warnings,
+      errors,
     };
 
     // Store in idempotency cache

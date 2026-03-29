@@ -175,6 +175,59 @@ describe('PublisherService', () => {
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
+  it('should post as general MR note when is_inline_comment is false', async () => {
+    const generalFinding: ModelFinding = {
+      ...baseFinding,
+      is_inline_comment: false,
+    };
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: generalFinding, reason: 'Architecture issue' },
+    ];
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    expect(results[0].success).toBe(true);
+    const call = (gitlabService.createDiscussion as jest.Mock).mock.calls[0];
+    expect(call[1].position).toBeUndefined();
+    expect(call[1].body).toContain(generalFinding.file_path);
+  });
+
+  it('should use old_path from file changes for renamed files', async () => {
+    const renamedFinding: ModelFinding = {
+      ...baseFinding,
+      file_path: 'src/new-name.ts',
+    };
+    const fileChanges = [
+      {
+        path: 'src/new-name.ts',
+        old_path: 'src/old-name.ts',
+        diff: '+code',
+        new_file: false,
+        deleted_file: false,
+        renamed_file: true,
+      },
+    ];
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: renamedFinding, reason: 'Issue' },
+    ];
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false, fileChanges);
+    expect(results[0].success).toBe(true);
+    const call = (gitlabService.createDiscussion as jest.Mock).mock.calls[0];
+    expect(call[1].position.old_path).toBe('src/old-name.ts');
+    expect(call[1].position.new_path).toBe('src/new-name.ts');
+  });
+
+  it('should include line range in body when end_line differs from line', async () => {
+    const multiLineFinding: ModelFinding = {
+      ...baseFinding,
+      end_line: 15,
+    };
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: multiLineFinding, reason: 'Issue' },
+    ];
+    await publisher.publish(actions, mockGitlab, diffRefs, false);
+    const call = (gitlabService.createDiscussion as jest.Mock).mock.calls[0];
+    expect(call[1].body).toContain('Lines 10–15');
+  });
+
   it('should create discussion with suggestion', async () => {
     const findingWithSugg: ModelFinding = {
       ...baseFinding,

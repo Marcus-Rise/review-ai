@@ -8,6 +8,16 @@ import {
 } from './review-packet.interface';
 import { buildDiscussionFingerprint } from './fingerprint.util';
 
+const MAX_FILES = 50;
+const MAX_DIFF_CHARS_PER_FILE = 10_000;
+const MAX_TOTAL_DIFF_CHARS = 100_000;
+
+const FILTERED_EXTENSIONS =
+  /\.(min\.js|min\.css|lock|map|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|pdf|zip|tar|gz|bin|exe|dll|so|dylib)$/i;
+const FILTERED_FILENAMES =
+  /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|composer\.lock|Gemfile\.lock|Cargo\.lock)$/;
+const FILTERED_PATHS = /(?:^|\/)(vendor|node_modules|dist|\.yarn)\//;
+
 @Injectable()
 export class ContextBuilderService {
   private readonly logger = new Logger(ContextBuilderService.name);
@@ -41,7 +51,7 @@ export class ContextBuilderService {
       start_sha: latestVersion?.start_commit_sha || mr.diff_refs.start_sha,
     };
 
-    const fileChanges: ReviewFileChange[] = changes.map((c) => ({
+    const rawChanges: ReviewFileChange[] = changes.map((c) => ({
       path: c.new_path,
       old_path: c.old_path,
       diff: c.diff,
@@ -49,6 +59,8 @@ export class ContextBuilderService {
       deleted_file: c.deleted_file,
       renamed_file: c.renamed_file,
     }));
+
+    const { changes: fileChanges, warnings } = this.boundChanges(rawChanges);
 
     const existingDiscussions: ExistingDiscussionSummary[] = discussions
       .filter((d) => d.notes.length > 0 && !d.notes[0].system)
@@ -79,6 +91,56 @@ export class ContextBuilderService {
       diff_refs: diffRefs,
       review_profile: profile,
       user_focus: userFocus,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
+  }
+
+  private boundChanges(rawChanges: ReviewFileChange[]): {
+    changes: ReviewFileChange[];
+    warnings: string[];
+  } {
+    const warnings: string[] = [];
+
+    // 1. Filter generated/binary files
+    const filtered = rawChanges.filter((c) => {
+      if (
+        FILTERED_EXTENSIONS.test(c.path) ||
+        FILTERED_FILENAMES.test(c.path) ||
+        FILTERED_PATHS.test(c.path)
+      )
+        return false;
+      if (c.diff.startsWith('Binary') || c.diff === '') return false;
+      return true;
+    });
+    const filteredCount = rawChanges.length - filtered.length;
+    if (filteredCount > 0) {
+      warnings.push(`${filteredCount} generated/binary file(s) filtered out`);
+    }
+
+    // 2. Limit file count
+    let bounded = filtered;
+    if (bounded.length > MAX_FILES) {
+      warnings.push(`Truncated from ${bounded.length} to ${MAX_FILES} files`);
+      bounded = bounded.slice(0, MAX_FILES);
+    }
+
+    // 3. Truncate per-file diffs and enforce total limit
+    let totalChars = 0;
+    const result: ReviewFileChange[] = [];
+    for (const change of bounded) {
+      let diff = change.diff;
+      if (diff.length > MAX_DIFF_CHARS_PER_FILE) {
+        diff = diff.slice(0, MAX_DIFF_CHARS_PER_FILE) + '\n... [truncated]';
+        warnings.push(`${change.path}: diff truncated to ${MAX_DIFF_CHARS_PER_FILE} chars`);
+      }
+      if (totalChars + diff.length > MAX_TOTAL_DIFF_CHARS) {
+        warnings.push(`Total diff size limit reached at ${change.path}, remaining files excluded`);
+        break;
+      }
+      totalChars += diff.length;
+      result.push({ ...change, diff });
+    }
+
+    return { changes: result, warnings };
   }
 }

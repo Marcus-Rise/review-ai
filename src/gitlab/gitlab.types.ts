@@ -67,7 +67,8 @@ export interface GitLabDiffPositionPayload {
   head_sha: string;
   new_path: string;
   old_path: string;
-  new_line: number;
+  new_line?: number;
+  old_line?: number;
 }
 
 export interface CreateDiscussionPayload {
