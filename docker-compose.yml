@@ -36,7 +36,7 @@ services:
       model:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/healthz"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
