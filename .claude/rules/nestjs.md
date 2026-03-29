@@ -16,3 +16,4 @@ paths:
 - Never swallow errors silently — log and rethrow or map to HTTP exception
 - `process.env` and `ConfigService.get()` always return **strings** — always parseInt/parseFloat when a number is needed (e.g. Fastify `bodyLimit` requires integer, not string)
 - When passing env values to Fastify options, cast explicitly — Fastify does strict type checks and throws on string-typed numbers
+- `@nestjs/swagger` with Fastify requires `@fastify/static` as a dependency — without it `SwaggerModule.setup()` crashes the process silently (exit code 1, no log output)
