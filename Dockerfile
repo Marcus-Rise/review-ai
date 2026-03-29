@@ -2,7 +2,7 @@ FROM node:22-alpine AS base
 RUN npm install -g pnpm@10
 WORKDIR /app
 
-# --- Full dependencies + build ---
+# --- Dependencies + build ---
 FROM base AS build
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -17,12 +17,10 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
+# Copy built output and all node_modules (includes dev deps for reliability)
 COPY --from=build --chown=appuser:appgroup /app/dist ./dist
+COPY --from=build --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=build --chown=appuser:appgroup /app/package.json ./
-
-# Install only production dependencies using npm (avoids pnpm prod install quirks)
-RUN npm install --omit=dev --ignore-scripts && \
-    chown -R appuser:appgroup node_modules
 
 USER appuser
 

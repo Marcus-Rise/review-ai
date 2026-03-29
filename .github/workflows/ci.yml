@@ -48,9 +48,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t ai-review-service:${{ github.sha }} .
+        run: docker build -t ai-review-service:test .
 
-      - name: Test Docker healthcheck
+      - name: Verify image exists
+        run: docker images ai-review-service:test
+
+      - name: Start container
         run: |
           docker run -d --name test-container \
             -e SWAGGER_ENABLED=true \
@@ -58,26 +61,31 @@ jobs:
             -e MODEL_NAME=test \
             -e APP_ENV=production \
             -p 3000:3000 \
-            ai-review-service:${{ github.sha }}
-          echo "Container started, waiting for startup..."
-          sleep 3
-          echo "=== Container logs ==="
-          docker logs test-container
-          echo "=== End logs ==="
+            ai-review-service:test
+
+      - name: Wait and show logs
+        run: |
+          sleep 5
           echo "=== Container status ==="
           docker inspect test-container --format='{{.State.Status}} exit={{.State.ExitCode}}'
-          echo ""
-          for i in 1 2 3 4 5 6 7 8; do
+          echo "=== Container logs ==="
+          docker logs test-container 2>&1
+          echo "=== End logs ==="
+
+      - name: Healthcheck
+        run: |
+          for i in 1 2 3 4 5 6; do
             if curl -sf http://localhost:3000/healthz; then
-              echo ""
               echo "Healthcheck passed"
-              docker stop test-container
               exit 0
             fi
-            echo "Attempt $i: waiting..."
+            echo "Attempt $i failed, waiting 3s..."
             sleep 3
           done
-          echo "Healthcheck failed — final logs:"
-          docker logs test-container
-          docker stop test-container || true
+          echo "All attempts failed"
+          docker logs test-container 2>&1
           exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker stop test-container || true
