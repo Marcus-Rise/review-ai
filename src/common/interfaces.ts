@@ -43,13 +43,6 @@ export type PublishDecision =
   | 'new_discussion'
   | 'new_discussion_with_suggestion';
 
-export interface PublishAction {
-  decision: PublishDecision;
-  finding: ModelFinding;
-  existing_discussion_id?: string;
-  reason: string;
-}
-
 export interface GitLabConfig {
   base_url: string;
   project_path?: string;
