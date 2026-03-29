@@ -28,6 +28,7 @@ Investigates CI pipeline failures for the review-ai project.
 - **HEALTHCHECK fails**: Alpine has no wget/curl → use `node -e "fetch(...)"`
 - **TypeScript error with Fastify types**: need `fastify` as direct dependency
 - **ESLint can't parse test files**: need `tsconfig.eslint.json` that includes `test/**/*`
+- **Fastify bodyLimit crash**: `process.env` returns strings, Fastify requires integer → use `parseInt()`
 
 ## Output
 

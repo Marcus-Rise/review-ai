@@ -14,3 +14,5 @@ paths:
 - `@Injectable()` services — keep them stateless where possible (rate-limit state is explicit exception)
 - Guards return `true/false` or throw `UnauthorizedException`, not raw booleans with side effects
 - Never swallow errors silently — log and rethrow or map to HTTP exception
+- `process.env` and `ConfigService.get()` always return **strings** — always parseInt/parseFloat when a number is needed (e.g. Fastify `bodyLimit` requires integer, not string)
+- When passing env values to Fastify options, cast explicitly — Fastify does strict type checks and throws on string-typed numbers

@@ -22,6 +22,11 @@ paths:
 - App service: `depends_on` model with `condition: service_healthy`
 - Read-only filesystem with `tmpfs` for `/tmp`
 
+## Runtime env gotchas
+- `process.env` values are ALWAYS strings — Fastify and other libs may reject string-typed numbers
+- Parse numeric env vars with `parseInt`/`parseFloat` before passing to Fastify options (`bodyLimit`, `connectionTimeout`, etc.)
+- Always test app startup locally with production env vars before pushing: `APP_ENV=production NODE_ENV=production timeout 5 node dist/main.js`
+
 ## CI Docker smoke test
 - Check container status via `docker inspect --format='{{.State.Status}}'`
 - Use `docker logs` for diagnostics before assertions
