@@ -38,11 +38,22 @@
 - Do not mutate `clients-config` files without explicit request
 - Idempotency keys must be scoped by `client_id`
 
+## Docker
+
+- Multi-stage build: `base` → `build` → `production`
+- pnpm 10 via `npm install -g pnpm@10` (not corepack — unreliable in Alpine)
+- Ship all `node_modules` in production (pnpm prune --prod is unreliable in v10)
+- Always set `APP_ENV=production` in Dockerfile to prevent pino-pretty crash
+- HEALTHCHECK uses `node -e "fetch(...)"` — not wget/curl (not in Alpine)
+- docker-compose: Ollama as model service, depends_on with healthcheck
+
 ## Checks after changes
 
 ```bash
 pnpm lint          # ESLint
-pnpm tsc:check     # npx tsc --noEmit
+pnpm format:check  # Prettier
+pnpm tsc:check     # tsc --noEmit
 pnpm test          # jest unit
 pnpm test:e2e      # jest e2e (requires running deps)
+pnpm build         # nest build
 ```
