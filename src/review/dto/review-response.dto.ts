@@ -1,0 +1,52 @@
+import { ApiProperty } from '@nestjs/swagger';
+
+export class ReviewActionDto {
+  @ApiProperty()
+  type!: string;
+
+  @ApiProperty()
+  path!: string;
+
+  @ApiProperty()
+  line!: number;
+
+  @ApiProperty({ required: false })
+  discussion_id?: string;
+
+  @ApiProperty()
+  reason!: string;
+}
+
+export class ReviewSummaryDto {
+  @ApiProperty()
+  findings_considered!: number;
+
+  @ApiProperty()
+  actions_published!: number;
+
+  @ApiProperty()
+  replies_posted!: number;
+
+  @ApiProperty()
+  skipped_duplicates!: number;
+
+  @ApiProperty()
+  dry_run!: boolean;
+}
+
+export class ReviewResponseDto {
+  @ApiProperty()
+  request_id!: string;
+
+  @ApiProperty()
+  status!: 'ok' | 'error';
+
+  @ApiProperty({ type: ReviewSummaryDto })
+  summary!: ReviewSummaryDto;
+
+  @ApiProperty({ type: [ReviewActionDto] })
+  actions!: ReviewActionDto[];
+
+  @ApiProperty({ type: [String] })
+  warnings!: string[];
+}

@@ -1,0 +1,8 @@
+dist/
+node_modules/
+.env
+*.log
+coverage/
+.pnpm-store/
+secrets/*.json
+!secrets/clients.example.json

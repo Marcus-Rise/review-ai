@@ -1,0 +1,54 @@
+# Example GitLab CI job for triggering AI code review
+# Copy this to your project's .gitlab-ci.yml or include it
+
+stages:
+  - review
+
+ai-review:
+  stage: review
+  image: curlimages/curl:latest
+  rules:
+    - when: manual
+      allow_failure: true
+  variables:
+    # Override these in CI/CD settings or job UI
+    REVIEW_MODE: "mr"
+    REVIEW_DRY_RUN: "false"
+    REVIEW_PROFILE: "default"
+    REVIEW_USER_FOCUS: ""
+    # These MUST be set as CI/CD secret variables — NOT entered in job UI
+    # AI_REVIEW_SERVICE_URL: https://your-review-service:3000
+    # AI_REVIEW_API_KEY: <from CI/CD secrets>
+    # AI_REVIEW_CLIENT_ID: gitlab-review-job
+    # GITLAB_REVIEW_TOKEN: <project/group access token with api scope>
+  script:
+    - |
+      echo "Running AI review for MR !${CI_MERGE_REQUEST_IID}..."
+      RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -X POST "${AI_REVIEW_SERVICE_URL}/api/v1/reviews/run" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${AI_REVIEW_API_KEY}" \
+        -H "X-Client-Id: ${AI_REVIEW_CLIENT_ID}" \
+        -d "{
+          \"api_version\": \"v1\",
+          \"gitlab\": {
+            \"base_url\": \"${CI_SERVER_URL}\",
+            \"project_path\": \"${CI_PROJECT_PATH}\",
+            \"mr_iid\": ${CI_MERGE_REQUEST_IID},
+            \"token\": \"${GITLAB_REVIEW_TOKEN}\"
+          },
+          \"review\": {
+            \"mode\": \"${REVIEW_MODE}\",
+            \"dry_run\": ${REVIEW_DRY_RUN},
+            \"profile\": \"${REVIEW_PROFILE}\",
+            \"user_focus\": \"${REVIEW_USER_FOCUS}\"
+          }
+        }")
+      HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+      BODY=$(echo "$RESPONSE" | head -n -1)
+      echo "Status: $HTTP_CODE"
+      echo "$BODY" | head -100
+      if [ "$HTTP_CODE" -ge 400 ]; then
+        echo "Review request failed with status $HTTP_CODE"
+        exit 1
+      fi
