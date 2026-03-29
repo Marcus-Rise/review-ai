@@ -34,6 +34,8 @@ See [docs/architecture.md](docs/architecture.md) for details.
 
 ## Quick Start (Local Development)
 
+> **Full step-by-step guide:** [docs/quickstart.md](docs/quickstart.md) — from zero to your first AI review on a real GitLab MR.
+
 ```bash
 # Install dependencies
 pnpm install
@@ -110,6 +112,8 @@ docker run -d \
 | `MODEL_ENDPOINT` | — | Model API base URL (OpenAI-compatible) |
 | `MODEL_NAME` | — | Model name to use |
 | `MODEL_TIMEOUT_MS` | `120000` | Model call timeout in ms |
+| `REQUEST_BODY_LIMIT` | `1048576` | Max request body size in bytes (1MB) |
+| `REQUEST_TIMEOUT_MS` | `300000` | Global request timeout in ms (5min) |
 
 ### Client Auth Config
 
@@ -150,7 +154,7 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
     "review": {
       "mode": "mr",
       "dry_run": false,
-      "profile": "default",
+      "profile": "default | security | thorough",
       "user_focus": "Pay attention to auth logic"
     }
   }'
@@ -218,7 +222,7 @@ The architecture supports adding:
 
 - GitLab webhook entrypoint
 - `@bot` mention handling
-- Additional review profiles
+- Additional review profiles (current: `default`, `security`, `thorough`)
 - Persistent storage for rate limits / idempotency
 - Secret hot-reload
 - Queue-based execution
