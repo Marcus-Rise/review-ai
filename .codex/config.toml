@@ -1,0 +1,36 @@
+personality = "pragmatic"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+review_model = "gpt-5.4"
+
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+project_root_markers = [".git"]
+
+[sandbox_workspace_write]
+network_access = true
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]
+startup_timeout_ms = 30000
+env = { NPM_CONFIG_CACHE = "/tmp/codex-npm-cache" }
+
+[profiles.fast]
+model = "gpt-5.4"
+model_reasoning_effort = "low"
+
+[profiles.deep]
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[profiles.review]
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[features]
+multi_agent = true
