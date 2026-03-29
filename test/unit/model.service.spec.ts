@@ -138,6 +138,46 @@ describe('ModelService', () => {
     expect(findings[0].line).toBe(2);
   });
 
+  it('should reject findings with invalid line numbers (0, negative, decimal, NaN)', async () => {
+    const invalidLines = [0, -1, 2.5, NaN];
+    const findings = invalidLines.map((line) => ({
+      category: 'correctness',
+      severity: 'high',
+      confidence: 'high',
+      file_path: 'f',
+      line,
+      risk_statement: 'x',
+      rationale: 'y',
+      is_inline_comment: true,
+      is_suggestion_safe: false,
+    }));
+    // Add one valid finding
+    findings.push({
+      category: 'correctness',
+      severity: 'high',
+      confidence: 'high',
+      file_path: 'f',
+      line: 10,
+      risk_statement: 'x',
+      rationale: 'y',
+      is_inline_comment: true,
+      is_suggestion_safe: false,
+    });
+
+    const mockResponse = {
+      choices: [{ message: { content: JSON.stringify({ findings }) } }],
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    });
+
+    const result = await service.analyze(mockPacket);
+    expect(result).toHaveLength(1);
+    expect(result[0].line).toBe(10);
+  });
+
   it('should handle model API errors', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

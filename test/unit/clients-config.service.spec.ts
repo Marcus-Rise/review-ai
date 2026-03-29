@@ -60,6 +60,39 @@ describe('ClientsConfigService', () => {
     expect(service.isLoaded()).toBe(true);
   });
 
+  it('should reject client with missing rate_limit', async () => {
+    const config = {
+      clients: [
+        {
+          client_id: 'test',
+          api_key: 'key123',
+          client_secret: 'secret',
+          enabled: true,
+          allowed_endpoints: ['/api/v1/reviews/run'],
+        },
+      ],
+    };
+    await writeFile(tmpFile, JSON.stringify(config));
+    await expect(service.loadConfig()).rejects.toThrow('missing or invalid rate_limit');
+  });
+
+  it('should reject client with invalid rate_limit values', async () => {
+    const config = {
+      clients: [
+        {
+          client_id: 'test',
+          api_key: 'key123',
+          client_secret: 'secret',
+          enabled: true,
+          allowed_endpoints: ['/api/v1/reviews/run'],
+          rate_limit: { requests: 0, per_seconds: -1 },
+        },
+      ],
+    };
+    await writeFile(tmpFile, JSON.stringify(config));
+    await expect(service.loadConfig()).rejects.toThrow('missing or invalid rate_limit');
+  });
+
   it('should find client by API key', async () => {
     const config = {
       clients: [

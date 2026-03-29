@@ -87,8 +87,8 @@ export class ModelService {
     const validSeverities = ['critical', 'high', 'medium', 'low', 'info'];
     const validConfidences = ['high', 'medium', 'low'];
 
-    if (!f.file_path || typeof f.line !== 'number') {
-      this.logger.debug(`Skipping finding: missing file_path or line`);
+    if (!f.file_path || typeof f.line !== 'number' || !Number.isInteger(f.line) || f.line < 1) {
+      this.logger.debug(`Skipping finding: missing file_path or invalid line`);
       return false;
     }
     if (!validCategories.includes(f.category)) {

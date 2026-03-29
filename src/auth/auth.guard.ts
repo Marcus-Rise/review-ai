@@ -59,6 +59,9 @@ export class AuthGuard implements CanActivate {
     const signature = request.headers['x-request-signature'] as string | undefined;
 
     if (timestamp && signature) {
+      // Note: We use JSON.stringify(body) rather than the raw HTTP payload because
+      // Fastify parses the body before guards execute and does not expose rawBody
+      // by default. Clients must sign the canonical JSON serialization of the body.
       const rawBody = JSON.stringify(request.body || '');
       const result = verifyHmacSignature(rawBody, timestamp, signature, client.client_secret);
       if (!result.valid) {

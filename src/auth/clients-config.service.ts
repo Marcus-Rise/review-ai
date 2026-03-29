@@ -58,6 +58,18 @@ export class ClientsConfigService implements OnModuleInit {
     if (!Array.isArray(client.allowed_endpoints)) {
       throw new Error(`Client ${client.client_id}: missing allowed_endpoints array`);
     }
+    if (
+      !client.rate_limit ||
+      typeof client.rate_limit !== 'object' ||
+      typeof client.rate_limit.requests !== 'number' ||
+      client.rate_limit.requests < 1 ||
+      typeof client.rate_limit.per_seconds !== 'number' ||
+      client.rate_limit.per_seconds < 1
+    ) {
+      throw new Error(
+        `Client ${client.client_id}: missing or invalid rate_limit (requires requests >= 1, per_seconds >= 1)`,
+      );
+    }
   }
 
   getClient(clientId: string): ClientConfig | undefined {
