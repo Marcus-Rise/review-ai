@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '../../src/auth/auth.guard';
 import { ClientsConfigService } from '../../src/auth/clients-config.service';
@@ -96,7 +97,19 @@ describe('AuthGuard', () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('should validate HMAC when headers present', () => {
+  it('should compare api_key in constant time (reject key with correct length but wrong value)', () => {
+    // Same length as 'test-key-123' but different — timing-safe check must still reject it
+    const sameLength = 'test-key-XXX';
+    expect(sameLength.length).toBe(mockClient.api_key.length);
+    (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
+    const ctx = createMockContext({
+      authorization: `Bearer ${sameLength}`,
+      'x-client-id': 'test-client',
+    });
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+  });
+
+  it('should reject invalid HMAC signature', () => {
     (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
     const ctx = createMockContext({
       authorization: 'Bearer test-key-123',
@@ -105,5 +118,33 @@ describe('AuthGuard', () => {
       'x-request-signature': 'invalid-signature',
     });
     expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+  });
+
+  it('should accept a correctly signed request (contract: HMAC-SHA256(body + timestamp, secret))', () => {
+    (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
+
+    const body = {};
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const rawBody = JSON.stringify(body);
+    // Contract: signature = HMAC-SHA256(body + timestamp, client_secret)
+    const signature = createHmac('sha256', mockClient.client_secret)
+      .update(`${rawBody}${timestamp}`)
+      .digest('hex');
+
+    const request = {
+      headers: {
+        authorization: 'Bearer test-key-123',
+        'x-client-id': 'test-client',
+        'x-request-timestamp': timestamp,
+        'x-request-signature': signature,
+      },
+      url: '/api/v1/reviews/run',
+      body,
+    };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
+
+    expect(guard.canActivate(ctx)).toBe(true);
   });
 });

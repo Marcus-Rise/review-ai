@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { ClientsConfigService } from './clients-config.service';
 import { verifyHmacSignature } from './hmac.util';
@@ -42,7 +43,10 @@ export class AuthGuard implements CanActivate {
       throw new ForbiddenException('Client is disabled');
     }
 
-    if (client.api_key !== apiKey) {
+    const keyMatch =
+      client.api_key.length === apiKey.length &&
+      timingSafeEqual(Buffer.from(client.api_key), Buffer.from(apiKey));
+    if (!keyMatch) {
       this.logger.warn(`Invalid API key for client: ${clientId}`);
       throw new UnauthorizedException('Invalid credentials');
     }
