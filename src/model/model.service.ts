@@ -40,7 +40,9 @@ export class ModelService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(this.configService.get<number>('MODEL_TIMEOUT_MS', 120_000)),
+      signal: AbortSignal.timeout(
+        parseInt(this.configService.get<string>('MODEL_TIMEOUT_MS', '120000'), 10),
+      ),
     });
 
     if (!response.ok) {

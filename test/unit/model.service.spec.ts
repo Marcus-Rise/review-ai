@@ -40,6 +40,36 @@ describe('ModelService', () => {
     service = new ModelService(configService);
   });
 
+  it('should pass a numeric timeout to AbortSignal even when env value is a string', async () => {
+    const stringTimeoutConfig = {
+      get: jest.fn((key: string, def?: unknown) => {
+        const map: Record<string, unknown> = {
+          MODEL_ENDPOINT: 'http://localhost:11434',
+          MODEL_NAME: 'codellama',
+          MODEL_TIMEOUT_MS: '5000', // string, as it comes from process.env
+        };
+        return map[key] ?? def;
+      }),
+    } as unknown as ConfigService;
+    const svc = new ModelService(stringTimeoutConfig);
+
+    let capturedSignal: AbortSignal | undefined;
+    global.fetch = jest.fn((_, init) => {
+      capturedSignal = (init as RequestInit).signal as AbortSignal;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ choices: [] }),
+      } as Response);
+    });
+
+    await svc.analyze(mockPacket);
+    // AbortSignal.timeout(NaN) or AbortSignal.timeout("5000") would produce
+    // a signal that aborts immediately or behaves incorrectly — verify it's numeric
+    expect(capturedSignal).toBeDefined();
+    // The signal must not be already aborted (which happens with NaN timeout)
+    expect(capturedSignal!.aborted).toBe(false);
+  });
+
   it('should throw when MODEL_ENDPOINT not configured', async () => {
     (configService.get as jest.Mock).mockReturnValue(undefined);
     await expect(service.analyze(mockPacket)).rejects.toThrow(
