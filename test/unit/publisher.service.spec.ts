@@ -51,12 +51,13 @@ describe('PublisherService', () => {
     expect(gitlabService.createDiscussion).not.toHaveBeenCalled();
   });
 
-  it('should not call GitLab in dry-run mode', async () => {
+  it('should not call GitLab in dry-run mode and include body in response', async () => {
     const actions: PublishAction[] = [
       { decision: 'new_discussion', finding: baseFinding, reason: 'New issue' },
     ];
     const { reviewActions } = await publisher.publish(actions, mockGitlab, diffRefs, true);
     expect(reviewActions[0].reason).toContain('[DRY RUN]');
+    expect(reviewActions[0].body).toContain(baseFinding.risk_statement);
     expect(gitlabService.createDiscussion).not.toHaveBeenCalled();
   });
 

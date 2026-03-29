@@ -32,12 +32,19 @@ export class PublisherService {
       }
 
       if (dryRun) {
+        const dryRunBody =
+          action.decision === 'reply'
+            ? this.formatReplyBody(action.finding)
+            : action.decision === 'new_discussion_with_suggestion'
+              ? this.formatSuggestionBody(action.finding)
+              : this.formatDiscussionBody(action.finding);
         reviewActions.push({
           type: action.decision === 'reply' ? 'reply' : action.decision,
           path: action.finding.file_path,
           line: action.finding.line,
           discussion_id: action.existing_discussion_id,
           reason: `[DRY RUN] ${action.reason}`,
+          body: dryRunBody,
         });
         results.push({ action, success: true });
         continue;
