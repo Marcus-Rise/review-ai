@@ -10,8 +10,7 @@ import { TimeoutInterceptor } from './common/timeout.interceptor';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
 async function bootstrap() {
-  const configService = new ConfigService();
-  const bodyLimit = configService.get<number>('REQUEST_BODY_LIMIT', 1024 * 1024);
+  const bodyLimit = parseInt(process.env.REQUEST_BODY_LIMIT || '', 10) || 1024 * 1024;
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
