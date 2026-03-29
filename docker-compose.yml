@@ -28,7 +28,7 @@ services:
       SWAGGER_ENABLED: "true"
       CLIENTS_CONFIG_PATH: /run/secrets/clients.json
       MODEL_ENDPOINT: http://model:11434
-      MODEL_NAME: qwen2.5-coder:1.5b
+      MODEL_NAME: qwen2.5-coder:7b
       MODEL_TIMEOUT_MS: "120000"
     volumes:
       - ./secrets/clients.json:/run/secrets/clients.json:ro
