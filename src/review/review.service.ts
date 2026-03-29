@@ -41,6 +41,11 @@ export class ReviewService {
       }
     }
 
+    // Validate project identification
+    if (!dto.gitlab.project_path && !dto.gitlab.project_id) {
+      throw new BadRequestException('Either project_path or project_id is required');
+    }
+
     // Rate limit check
     const projectPath = dto.gitlab.project_path || String(dto.gitlab.project_id);
     const rateLimit = this.rateLimitService.checkLimit(
@@ -56,11 +61,6 @@ export class ReviewService {
         `Rate limit exceeded. Retry after ${rateLimit.retryAfterSeconds} seconds`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
-    }
-
-    // Validate project identification
-    if (!dto.gitlab.project_path && !dto.gitlab.project_id) {
-      throw new BadRequestException('Either project_path or project_id is required');
     }
 
     const gitlabConfig: GitLabConfig = {
