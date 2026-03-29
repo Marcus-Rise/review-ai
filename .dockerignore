@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.git
+*.md
+!README.md
+.env
+secrets/*.json
+!secrets/clients.example.json
+test
+docs
+.github

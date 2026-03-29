@@ -1,0 +1,173 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { GitLabService } from '../gitlab/gitlab.service';
+import { GitLabConfig, ReviewAction } from '../common/interfaces';
+import { PublishAction, PublishResult } from './publish.types';
+import { CreateDiscussionPayload, GitLabDiffPositionPayload } from '../gitlab/gitlab.types';
+
+@Injectable()
+export class PublisherService {
+  private readonly logger = new Logger(PublisherService.name);
+
+  constructor(private readonly gitlab: GitLabService) {}
+
+  async publish(
+    actions: PublishAction[],
+    gitlabConfig: GitLabConfig,
+    diffRefs: { base_sha: string; head_sha: string; start_sha: string },
+    dryRun: boolean,
+  ): Promise<{ results: PublishResult[]; reviewActions: ReviewAction[] }> {
+    const results: PublishResult[] = [];
+    const reviewActions: ReviewAction[] = [];
+
+    for (const action of actions) {
+      if (action.decision === 'skip') {
+        reviewActions.push({
+          type: 'skip',
+          path: action.finding.file_path,
+          line: action.finding.line,
+          reason: action.reason,
+        });
+        results.push({ action, success: true });
+        continue;
+      }
+
+      if (dryRun) {
+        const dryRunBody =
+          action.decision === 'reply'
+            ? this.formatReplyBody(action.finding)
+            : action.decision === 'new_discussion_with_suggestion'
+              ? this.formatSuggestionBody(action.finding)
+              : this.formatDiscussionBody(action.finding);
+        reviewActions.push({
+          type: action.decision === 'reply' ? 'reply' : action.decision,
+          path: action.finding.file_path,
+          line: action.finding.line,
+          discussion_id: action.existing_discussion_id,
+          reason: `[DRY RUN] ${action.reason}`,
+          body: dryRunBody,
+        });
+        results.push({ action, success: true });
+        continue;
+      }
+
+      try {
+        const result = await this.executeAction(action, gitlabConfig, diffRefs);
+        results.push(result);
+        const body =
+          action.decision === 'reply'
+            ? this.formatReplyBody(action.finding)
+            : action.decision === 'new_discussion_with_suggestion'
+              ? this.formatSuggestionBody(action.finding)
+              : this.formatDiscussionBody(action.finding);
+        const effectiveType =
+          action.decision === 'reply' && !action.existing_discussion_id
+            ? 'new_discussion'
+            : action.decision === 'reply'
+              ? 'reply'
+              : action.decision;
+        reviewActions.push({
+          type: effectiveType,
+          path: action.finding.file_path,
+          line: action.finding.line,
+          discussion_id: result.discussion_id || action.existing_discussion_id,
+          reason: action.reason,
+          body,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to publish action for ${action.finding.file_path}:${action.finding.line}: ${error}`,
+        );
+        results.push({
+          action,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return { results, reviewActions };
+  }
+
+  private async executeAction(
+    action: PublishAction,
+    config: GitLabConfig,
+    diffRefs: { base_sha: string; head_sha: string; start_sha: string },
+  ): Promise<PublishResult> {
+    const { finding, decision } = action;
+
+    if (decision === 'reply' && action.existing_discussion_id) {
+      const body = this.formatReplyBody(finding);
+      await this.gitlab.replyToDiscussion(config, action.existing_discussion_id, body);
+      return {
+        action,
+        success: true,
+        discussion_id: action.existing_discussion_id,
+      };
+    }
+
+    if (decision === 'reply' && !action.existing_discussion_id) {
+      this.logger.warn(
+        `reply without existing_discussion_id for ${finding.file_path}:${finding.line} — creating new discussion instead`,
+      );
+    }
+
+    // New discussion or new discussion with suggestion
+    const body =
+      decision === 'new_discussion_with_suggestion'
+        ? this.formatSuggestionBody(finding)
+        : this.formatDiscussionBody(finding);
+
+    const position: GitLabDiffPositionPayload = {
+      position_type: 'text',
+      base_sha: diffRefs.base_sha,
+      start_sha: diffRefs.start_sha,
+      head_sha: diffRefs.head_sha,
+      new_path: finding.file_path,
+      old_path: finding.file_path,
+      new_line: finding.line,
+    };
+
+    const payload: CreateDiscussionPayload = { body, position };
+
+    try {
+      const discussion = await this.gitlab.createDiscussion(config, payload);
+      return { action, success: true, discussion_id: discussion.id };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes('400')) throw err;
+
+      // Line is outside the diff hunks — fall back to a general MR note
+      this.logger.warn(
+        `Inline note rejected for ${finding.file_path}:${finding.line} (line not in diff), posting as general note`,
+      );
+      const fallbackBody = `> **${finding.file_path}:${finding.line}**\n\n${this.formatDiscussionBody(finding)}`;
+      const discussion = await this.gitlab.createDiscussion(config, { body: fallbackBody });
+      return { action, success: true, discussion_id: discussion.id };
+    }
+  }
+
+  private formatDiscussionBody(finding: import('../common/interfaces').ModelFinding): string {
+    const severity = finding.severity.toUpperCase();
+    const category = finding.category;
+    return (
+      `**[${severity}]** ${finding.risk_statement}\n\n` +
+      `**Category:** ${category} | **Confidence:** ${finding.confidence}\n\n` +
+      `${finding.rationale}`
+    );
+  }
+
+  private formatSuggestionBody(finding: import('../common/interfaces').ModelFinding): string {
+    const header = this.formatDiscussionBody(finding);
+    if (!finding.suggestion) return header;
+
+    return `${header}\n\n` + `\`\`\`suggestion\n${finding.suggestion}\n\`\`\``;
+  }
+
+  private formatReplyBody(finding: import('../common/interfaces').ModelFinding): string {
+    return (
+      `This issue appears to persist in the latest changes.\n\n` +
+      `**[${finding.severity.toUpperCase()}]** ${finding.risk_statement}\n\n` +
+      `${finding.rationale}`
+    );
+  }
+}
