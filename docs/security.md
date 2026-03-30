@@ -16,10 +16,9 @@
 
 ### Outbound (Service → GitLab)
 
-- GitLab token passed per-request in the body (`gitlab.token`) or via `X-GitLab-Token` header
-- Body token takes precedence when both are provided
-- Handled in-memory only regardless of transport
-- Never logged (redacted by Pino)
+- GitLab token stored per client in `clients.json` (`gitlab_token` field)
+- Loaded at startup alongside other client credentials
+- Handled in-memory only, never logged
 - Supports project, group, or personal access tokens with API scope
 
 ## Secret Management
@@ -34,7 +33,6 @@
 The following fields are automatically redacted:
 - `req.headers.authorization`
 - `req.headers["x-request-signature"]`
-- `req.body.gitlab.token`
 
 ## Prompt Injection Protection
 
