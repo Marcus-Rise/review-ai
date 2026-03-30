@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ContextBuilderService } from '../../src/review/context-builder.service';
+import { PROVIDER_LIMITS, ContextLimits } from '../../src/review/context-limits';
 import { GitLabService } from '../../src/gitlab/gitlab.service';
 import { GitLabConfig } from '../../src/common/interfaces';
 
@@ -21,6 +22,10 @@ const baseMr = {
   web_url: 'https://gitlab.example.com/group/project/-/merge_requests/1',
 };
 
+function limitsFor(provider = 'openai'): ContextLimits {
+  return PROVIDER_LIMITS[provider] ?? PROVIDER_LIMITS.openai;
+}
+
 function makeGitlabService(mrState: string) {
   return {
     getMergeRequest: jest.fn().mockResolvedValue({ ...baseMr, state: mrState }),
@@ -37,7 +42,7 @@ function makeGitlabService(mrState: string) {
 describe('ContextBuilderService', () => {
   it('should build context for an opened MR', async () => {
     const gitlabService = makeGitlabService('opened');
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor());
     const packet = await service.build(mockGitlab, 'default');
     expect(packet.mr_title).toBe('My MR');
     expect(packet.changes).toHaveLength(0);
@@ -45,14 +50,14 @@ describe('ContextBuilderService', () => {
 
   it('should throw BadRequestException for a closed MR', async () => {
     const gitlabService = makeGitlabService('closed');
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor());
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(BadRequestException);
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(/closed/i);
   });
 
   it('should throw BadRequestException for a merged MR', async () => {
     const gitlabService = makeGitlabService('merged');
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor());
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(BadRequestException);
     await expect(service.build(mockGitlab, 'default')).rejects.toThrow(/merged/i);
   });
@@ -101,14 +106,14 @@ describe('ContextBuilderService', () => {
         renamed_file: false,
       },
     ]);
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor());
     const packet = await service.build(mockGitlab, 'default');
     expect(packet.changes).toHaveLength(1);
     expect(packet.changes[0].path).toBe('src/app.ts');
     expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('filtered')]));
   });
 
-  it('should truncate individual file diffs exceeding per-file limit', async () => {
+  it('should truncate individual file diffs exceeding per-file limit (openai)', async () => {
     const gitlabService = makeGitlabService('opened');
     const largeDiff = 'a'.repeat(15000);
     (gitlabService.getMrChanges as jest.Mock).mockResolvedValue([
@@ -121,13 +126,34 @@ describe('ContextBuilderService', () => {
         renamed_file: false,
       },
     ]);
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor('openai'));
     const packet = await service.build(mockGitlab, 'default');
-    expect(packet.changes[0].diff.length).toBeLessThanOrEqual(10100);
+    const limit = PROVIDER_LIMITS.openai.maxDiffCharsPerFile;
+    expect(packet.changes[0].diff.length).toBeLessThanOrEqual(limit + 20);
     expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('truncated')]));
   });
 
-  it('should limit total files to MAX_FILES', async () => {
+  it('should use stricter limits for amvera provider', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const largeDiff = 'a'.repeat(15000);
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue([
+      {
+        new_path: 'big.ts',
+        old_path: 'big.ts',
+        diff: largeDiff,
+        new_file: false,
+        deleted_file: false,
+        renamed_file: false,
+      },
+    ]);
+    const service = new ContextBuilderService(gitlabService, limitsFor('amvera'));
+    const packet = await service.build(mockGitlab, 'default');
+    const limit = PROVIDER_LIMITS.amvera.maxDiffCharsPerFile;
+    expect(packet.changes[0].diff.length).toBeLessThanOrEqual(limit + 20);
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining(`${limit}`)]));
+  });
+
+  it('should limit total files to provider MAX_FILES (openai=50)', async () => {
     const gitlabService = makeGitlabService('opened');
     const manyChanges = Array.from({ length: 60 }, (_, i) => ({
       new_path: `file${i}.ts`,
@@ -138,13 +164,47 @@ describe('ContextBuilderService', () => {
       renamed_file: false,
     }));
     (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(manyChanges);
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor('openai'));
     const packet = await service.build(mockGitlab, 'default');
     expect(packet.changes.length).toBeLessThanOrEqual(50);
     expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('50')]));
   });
 
-  it('should enforce total diff char limit across all files', async () => {
+  it('should limit total files to provider MAX_FILES (amvera=20)', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const manyChanges = Array.from({ length: 60 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: '+line',
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(manyChanges);
+    const service = new ContextBuilderService(gitlabService, limitsFor('amvera'));
+    const packet = await service.build(mockGitlab, 'default');
+    expect(packet.changes.length).toBeLessThanOrEqual(20);
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('20')]));
+  });
+
+  it('should enforce total diff char limit (openai=100k)', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const changes = Array.from({ length: 50 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: 'x'.repeat(8000),
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(changes);
+    const service = new ContextBuilderService(gitlabService, limitsFor('openai'));
+    const packet = await service.build(mockGitlab, 'default');
+    const totalChars = packet.changes.reduce((sum, c) => sum + c.diff.length, 0);
+    expect(totalChars).toBeLessThanOrEqual(PROVIDER_LIMITS.openai.maxTotalDiffChars);
+  });
+
+  it('should enforce total diff char limit (amvera=12k)', async () => {
     const gitlabService = makeGitlabService('opened');
     const changes = Array.from({ length: 20 }, (_, i) => ({
       new_path: `file${i}.ts`,
@@ -155,12 +215,28 @@ describe('ContextBuilderService', () => {
       renamed_file: false,
     }));
     (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(changes);
-    const service = new ContextBuilderService(gitlabService);
+    const service = new ContextBuilderService(gitlabService, limitsFor('amvera'));
     const packet = await service.build(mockGitlab, 'default');
     const totalChars = packet.changes.reduce((sum, c) => sum + c.diff.length, 0);
-    expect(totalChars).toBeLessThanOrEqual(101000);
+    expect(totalChars).toBeLessThanOrEqual(PROVIDER_LIMITS.amvera.maxTotalDiffChars);
     expect(packet.warnings).toEqual(
       expect.arrayContaining([expect.stringContaining('limit reached')]),
     );
+  });
+
+  it('should fall back to openai limits for unknown provider', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const manyChanges = Array.from({ length: 60 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: '+line',
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(manyChanges);
+    const service = new ContextBuilderService(gitlabService, limitsFor('unknown'));
+    const packet = await service.build(mockGitlab, 'default');
+    expect(packet.changes.length).toBeLessThanOrEqual(50);
   });
 });

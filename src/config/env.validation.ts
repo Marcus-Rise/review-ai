@@ -14,9 +14,11 @@ export const envValidation = Joi.object({
   CLIENTS_CONFIG_PATH: Joi.string().optional(),
 
   // Model
+  MODEL_PROVIDER: Joi.string().valid('openai', 'amvera').default('openai'),
   MODEL_ENDPOINT: Joi.string().uri().optional(),
   MODEL_NAME: Joi.string().optional(),
   MODEL_TIMEOUT_MS: Joi.number().integer().min(1000).default(120_000),
+  MODEL_API_KEY_PATH: Joi.string().optional(),
 
   // Request limits
   REQUEST_BODY_LIMIT: Joi.number()

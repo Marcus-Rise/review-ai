@@ -3,6 +3,7 @@ import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
 import { ClientsConfigService } from '../../src/auth/clients-config.service';
+import { MODEL_PROVIDER } from '../../src/model/providers/model-provider.interface';
 import { RequestIdInterceptor } from '../../src/common/request-id.interceptor';
 import { GlobalExceptionFilter } from '../../src/common/http-exception.filter';
 
@@ -28,6 +29,8 @@ describe('POST /api/v1/reviews/run (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(MODEL_PROVIDER)
+      .useValue({ complete: jest.fn() })
       .overrideProvider(ClientsConfigService)
       .useValue({
         getClient: jest.fn().mockReturnValue({

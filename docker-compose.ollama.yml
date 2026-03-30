@@ -1,6 +1,3 @@
-## Default compose — Ollama (self-hosted).
-## For Amvera (cloud): docker compose -f docker-compose.amvera.yml up -d
-
 services:
   model:
     image: ollama/ollama:latest

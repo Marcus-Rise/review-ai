@@ -60,12 +60,17 @@ pnpm build         # nest build
 
 ## Documentation consistency
 
-After any code change that affects public API contracts, response shapes, request headers, auth behavior, or architectural patterns:
+After **any** code change — not just API changes — check and update docs:
 
-1. Check all docs (`docs/*.md`, `README.md`, `ai-review-service-spec-2.md`) for consistency with the updated code
-2. Update response examples, request schemas, header lists, status values, and error formats
-3. Keep curl examples in `docs/quickstart.md` and `README.md` in sync with the actual DTO/controller signatures
-4. Never leave stale API examples — they mislead integrators more than missing docs
+1. **Always check:** `README.md`, `docs/quickstart.md`, `docs/api-contracts.md`, `docs/operability.md`, `docs/providers/*/findings.md`
+2. **Specific triggers:**
+   - Context limits changed (`MAX_FILES`, `MAX_DIFF_CHARS_PER_FILE`, `MAX_TOTAL_DIFF_CHARS`) → update `docs/api-contracts.md` Context Bounding section
+   - Model provider config changed → update `README.md` and `docs/quickstart.md` provider sections
+   - New env variable added → update `README.md` Environment Variables table
+   - Provider behavior discovered → update `docs/providers/<provider>/findings.md`
+3. Update response examples, request schemas, header lists, status values, and error formats
+4. Keep curl examples in `docs/quickstart.md` and `README.md` in sync with actual DTO/controller signatures
+5. Never leave stale API examples — they mislead integrators more than missing docs
 
 ## Responding to PR review comments
 

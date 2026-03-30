@@ -1,22 +1,4 @@
-## Default compose — Ollama (self-hosted).
-## For Amvera (cloud): docker compose -f docker-compose.amvera.yml up -d
-
 services:
-  model:
-    image: ollama/ollama:latest
-    container_name: ai-review-model
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
   ai-review-service:
     build:
       context: .
@@ -30,15 +12,13 @@ services:
       LOG_LEVEL: info
       SWAGGER_ENABLED: "true"
       CLIENTS_CONFIG_PATH: /run/secrets/clients.json
-      MODEL_PROVIDER: openai
-      MODEL_ENDPOINT: http://model:11434
-      MODEL_NAME: qwen2.5-coder:7b
+      MODEL_API_KEY_PATH: /run/secrets/model-api-key.txt
+      MODEL_PROVIDER: amvera
+      MODEL_NAME: gpt-5
       MODEL_TIMEOUT_MS: "120000"
     volumes:
       - ./secrets/clients.json:/run/secrets/clients.json:ro
-    depends_on:
-      model:
-        condition: service_healthy
+      - ./secrets/model-api-key.txt:/run/secrets/model-api-key.txt:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"]
       interval: 15s
@@ -49,6 +29,3 @@ services:
     tmpfs:
       - /tmp
     restart: unless-stopped
-
-volumes:
-  ollama_data:

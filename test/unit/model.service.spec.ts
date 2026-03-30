@@ -1,6 +1,8 @@
 import { ModelService } from '../../src/model/model.service';
 import { ConfigService } from '@nestjs/config';
 import { ReviewPacket } from '../../src/review/review-packet.interface';
+import { Logger } from '@nestjs/common';
+import { ModelProvider } from '../../src/model/providers/model-provider.interface';
 
 const mockPacket: ReviewPacket = {
   mr_title: 'Test MR',
@@ -25,86 +27,71 @@ const mockPacket: ReviewPacket = {
 describe('ModelService', () => {
   let service: ModelService;
   let configService: ConfigService;
+  let mockProvider: jest.Mocked<ModelProvider>;
 
   beforeEach(() => {
     configService = {
       get: jest.fn((key: string, def?: unknown) => {
         const map: Record<string, unknown> = {
-          MODEL_ENDPOINT: 'http://localhost:11434',
           MODEL_NAME: 'codellama',
-          MODEL_TIMEOUT_MS: 5000,
         };
         return map[key] ?? def;
       }),
-    } as unknown as ConfigService;
-    service = new ModelService(configService);
-  });
-
-  it('should pass a numeric timeout to AbortSignal even when env value is a string', async () => {
-    const stringTimeoutConfig = {
-      get: jest.fn((key: string, def?: unknown) => {
+      getOrThrow: jest.fn((key: string) => {
         const map: Record<string, unknown> = {
-          MODEL_ENDPOINT: 'http://localhost:11434',
           MODEL_NAME: 'codellama',
-          MODEL_TIMEOUT_MS: '5000', // string, as it comes from process.env
         };
-        return map[key] ?? def;
+        const val = map[key];
+        if (val === undefined) throw new Error(`Missing ${key}`);
+        return val;
       }),
     } as unknown as ConfigService;
-    const svc = new ModelService(stringTimeoutConfig);
 
-    let capturedSignal: AbortSignal | undefined;
-    global.fetch = jest.fn((_, init) => {
-      capturedSignal = (init as RequestInit).signal as AbortSignal;
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ choices: [] }),
-      } as Response);
-    });
+    mockProvider = {
+      complete: jest.fn().mockResolvedValue({
+        content: JSON.stringify({ findings: [] }),
+      }),
+    };
 
-    await svc.analyze(mockPacket);
-    // AbortSignal.timeout(NaN) or AbortSignal.timeout("5000") would produce
-    // a signal that aborts immediately or behaves incorrectly — verify it's numeric
-    expect(capturedSignal).toBeDefined();
-    // The signal must not be already aborted (which happens with NaN timeout)
-    expect(capturedSignal!.aborted).toBe(false);
+    service = new ModelService(mockProvider, configService);
   });
 
-  it('should throw when MODEL_ENDPOINT not configured', async () => {
-    (configService.get as jest.Mock).mockReturnValue(undefined);
-    await expect(service.analyze(mockPacket)).rejects.toThrow(
-      'MODEL_ENDPOINT and MODEL_NAME must be configured',
+  it('should call provider.complete with correct parameters', async () => {
+    await service.analyze(mockPacket);
+
+    expect(mockProvider.complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'codellama',
+        temperature: 0.1,
+        jsonMode: true,
+      }),
     );
   });
 
-  it('should parse valid model response', async () => {
-    const mockResponse = {
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              findings: [
-                {
-                  category: 'correctness',
-                  severity: 'high',
-                  confidence: 'high',
-                  file_path: 'src/foo.ts',
-                  line: 5,
-                  risk_statement: 'Bug found',
-                  rationale: 'Reason',
-                  is_inline_comment: true,
-                  is_suggestion_safe: false,
-                },
-              ],
-            }),
-          },
-        },
-      ],
-    };
+  it('should throw when MODEL_NAME not configured', async () => {
+    (configService.getOrThrow as jest.Mock).mockImplementation(() => {
+      throw new Error('Missing MODEL_NAME');
+    });
+    await expect(service.analyze(mockPacket)).rejects.toThrow('Missing MODEL_NAME');
+  });
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
+  it('should parse valid model response', async () => {
+    mockProvider.complete.mockResolvedValue({
+      content: JSON.stringify({
+        findings: [
+          {
+            category: 'correctness',
+            severity: 'high',
+            confidence: 'high',
+            file_path: 'src/foo.ts',
+            line: 5,
+            risk_statement: 'Bug found',
+            rationale: 'Reason',
+            is_inline_comment: true,
+            is_suggestion_safe: false,
+          },
+        ],
+      }),
     });
 
     const findings = await service.analyze(mockPacket);
@@ -112,55 +99,48 @@ describe('ModelService', () => {
     expect(findings[0].category).toBe('correctness');
   });
 
+  it('should return empty array for empty content', async () => {
+    mockProvider.complete.mockResolvedValue({ content: '' });
+
+    const findings = await service.analyze(mockPacket);
+    expect(findings).toHaveLength(0);
+  });
+
   it('should return empty array for invalid JSON response', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ choices: [{ message: { content: 'not json {' } }] }),
-    });
+    mockProvider.complete.mockResolvedValue({ content: 'not json {' });
 
     const findings = await service.analyze(mockPacket);
     expect(findings).toHaveLength(0);
   });
 
   it('should filter out findings with invalid fields', async () => {
-    const mockResponse = {
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              findings: [
-                {
-                  category: 'invalid',
-                  severity: 'high',
-                  confidence: 'high',
-                  file_path: 'f',
-                  line: 1,
-                  risk_statement: 'x',
-                  rationale: 'y',
-                  is_inline_comment: true,
-                  is_suggestion_safe: false,
-                },
-                {
-                  category: 'correctness',
-                  severity: 'high',
-                  confidence: 'high',
-                  file_path: 'f',
-                  line: 2,
-                  risk_statement: 'x',
-                  rationale: 'y',
-                  is_inline_comment: true,
-                  is_suggestion_safe: false,
-                },
-              ],
-            }),
+    mockProvider.complete.mockResolvedValue({
+      content: JSON.stringify({
+        findings: [
+          {
+            category: 'invalid',
+            severity: 'high',
+            confidence: 'high',
+            file_path: 'f',
+            line: 1,
+            risk_statement: 'x',
+            rationale: 'y',
+            is_inline_comment: true,
+            is_suggestion_safe: false,
           },
-        },
-      ],
-    };
-
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
+          {
+            category: 'correctness',
+            severity: 'high',
+            confidence: 'high',
+            file_path: 'f',
+            line: 2,
+            risk_statement: 'x',
+            rationale: 'y',
+            is_inline_comment: true,
+            is_suggestion_safe: false,
+          },
+        ],
+      }),
     });
 
     const findings = await service.analyze(mockPacket);
@@ -181,7 +161,6 @@ describe('ModelService', () => {
       is_inline_comment: true,
       is_suggestion_safe: false,
     }));
-    // Add one valid finding
     findings.push({
       category: 'correctness',
       severity: 'high',
@@ -194,13 +173,8 @@ describe('ModelService', () => {
       is_suggestion_safe: false,
     });
 
-    const mockResponse = {
-      choices: [{ message: { content: JSON.stringify({ findings }) } }],
-    };
-
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
+    mockProvider.complete.mockResolvedValue({
+      content: JSON.stringify({ findings }),
     });
 
     const result = await service.analyze(mockPacket);
@@ -208,13 +182,21 @@ describe('ModelService', () => {
     expect(result[0].line).toBe(10);
   });
 
-  it('should handle model API errors', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      text: () => Promise.resolve('Internal error'),
-    });
+  it('should handle provider errors', async () => {
+    mockProvider.complete.mockRejectedValue(new Error('Model API returned 500'));
 
     await expect(service.analyze(mockPacket)).rejects.toThrow('Model API returned 500');
+  });
+
+  it('should log usage tokens when present', async () => {
+    const logSpy = jest.spyOn(Logger.prototype, 'log');
+
+    mockProvider.complete.mockResolvedValue({
+      content: JSON.stringify({ findings: [] }),
+      usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+    });
+
+    await service.analyze(mockPacket);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('prompt=100'));
   });
 });
