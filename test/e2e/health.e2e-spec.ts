@@ -16,7 +16,7 @@ describe('Health endpoints (e2e)', () => {
       .overrideProvider(ConfigService)
       .useValue({
         get: (key: string, def?: unknown) => {
-          if (key === 'MODEL_ENDPOINT') return 'http://model:11434';
+          if (key === 'MODEL_PROVIDER') return 'openai';
           if (key === 'MODEL_NAME') return 'qwen2.5-coder:1.5b';
           if (key === 'LOG_LEVEL') return 'silent';
           if (key === 'APP_ENV') return 'test';
@@ -48,7 +48,7 @@ describe('Health endpoints (e2e)', () => {
     const body = JSON.parse(result.payload);
     expect(body.status).toBe('ready');
     expect(body.checks.clients_loaded).toBe(true);
-    expect(body.checks.model_endpoint_configured).toBe(true);
+    expect(body.checks.model_provider_configured).toBe(true);
     expect(body.checks.model_name_configured).toBe(true);
   });
 });
@@ -87,7 +87,7 @@ describe('Health /readyz — not ready (e2e)', () => {
     const body = JSON.parse(result.payload);
     expect(body.status).toBe('not_ready');
     expect(body.checks.clients_loaded).toBe(false);
-    expect(body.checks.model_endpoint_configured).toBe(false);
+    expect(body.checks.model_provider_configured).toBe(false);
     expect(body.checks.model_name_configured).toBe(false);
   });
 });

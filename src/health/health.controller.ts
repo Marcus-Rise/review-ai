@@ -26,7 +26,7 @@ export class HealthController {
   readyz(@Res() res: FastifyReply) {
     const checks: Record<string, boolean> = {
       clients_loaded: this.clientsConfig.isLoaded(),
-      model_endpoint_configured: !!this.configService.get<string>('MODEL_ENDPOINT'),
+      model_provider_configured: !!this.configService.get<string>('MODEL_PROVIDER'),
       model_name_configured: !!this.configService.get<string>('MODEL_NAME'),
     };
 
