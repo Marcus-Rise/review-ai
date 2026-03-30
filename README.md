@@ -101,10 +101,10 @@ docker run -d \
   -p 3000:3000 \
   -e MODEL_PROVIDER=amvera \
   -e MODEL_NAME=gpt-5 \
-  -e MODEL_API_KEY_PATH=/run/secrets/model-api-key.txt \
-  -e CLIENTS_CONFIG_PATH=/run/secrets/clients.json \
-  -v /path/to/clients.json:/run/secrets/clients.json:ro \
-  -v /path/to/model-api-key.txt:/run/secrets/model-api-key.txt:ro \
+  -e MODEL_API_KEY_PATH=/run/secrets/model-api-key \
+  -e CLIENTS_CONFIG_PATH=/run/secrets/clients-config \
+  -v /path/to/clients.json:/run/secrets/clients-config:ro \
+  -v /path/to/model-api-key.txt:/run/secrets/model-api-key:ro \
   ai-review-service
 
 # With Ollama (self-hosted)
@@ -113,8 +113,8 @@ docker run -d \
   -e MODEL_PROVIDER=openai \
   -e MODEL_ENDPOINT=http://your-model-host:11434 \
   -e MODEL_NAME=qwen2.5-coder:7b \
-  -e CLIENTS_CONFIG_PATH=/run/secrets/clients.json \
-  -v /path/to/clients.json:/run/secrets/clients.json:ro \
+  -e CLIENTS_CONFIG_PATH=/run/secrets/clients-config \
+  -v /path/to/clients.json:/run/secrets/clients-config:ro \
   ai-review-service
 ```
 
