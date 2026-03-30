@@ -6,6 +6,7 @@ import {
   ModelProviderResponse,
 } from './model-provider.interface';
 
+/** Маппинг model ID → путь эндпоинта Amvera */
 const MODEL_ENDPOINT_MAP: Record<string, string> = {
   llama8b: '/models/llama',
   llama70b: '/models/llama',
@@ -17,7 +18,12 @@ const MODEL_ENDPOINT_MAP: Record<string, string> = {
   qwen3_235b: '/models/qwen',
 };
 
-const GPT_MODELS = new Set(['gpt-4.1', 'gpt-5']);
+/**
+ * Модели с reasoning — не поддерживают temperature,
+ * вместо него используют reasoning_effort.
+ * gpt-5 требует reasoning_effort: low чтобы уложиться в 60s gateway timeout Amvera.
+ */
+const REASONING_MODELS = new Set<string>(['gpt-5']);
 
 const DEFAULT_ENDPOINT = 'https://kong-proxy.yc.amvera.ru/api/v1';
 
@@ -41,17 +47,18 @@ export class AmveraProvider implements ModelProvider {
     }
 
     const url = `${baseUrl}${modelPath}`;
-    const isGpt = GPT_MODELS.has(req.model);
+    const isReasoning = REASONING_MODELS.has(req.model);
 
+    // Amvera использует "text" вместо "content" в messages (Swagger spec)
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
-        { role: 'system', content: req.systemPrompt },
-        { role: 'user', content: req.userPrompt },
+        { role: 'system', text: req.systemPrompt },
+        { role: 'user', text: req.userPrompt },
       ],
     };
 
-    if (isGpt) {
+    if (isReasoning) {
       body.reasoning_effort = 'low';
     } else {
       body.temperature = req.temperature;
@@ -80,15 +87,31 @@ export class AmveraProvider implements ModelProvider {
     }
 
     const json = await res.json();
-    const content = json.choices?.[0]?.message?.content ?? '';
+
+    // GPT-формат: choices[].message.text (Swagger)
+    // Fallback на content (на случай изменений API)
+    // LLaMA-формат (deprecated): alternatives[].message.text
+    const gptMessage = json.choices?.[0]?.message;
+    const content =
+      gptMessage?.text ??
+      gptMessage?.content ??
+      json.alternatives?.[0]?.message?.text ??
+      json.result?.alternatives?.[0]?.message?.text ??
+      '';
+
+    // Usage: GPT = числа, LLaMA = строки
+    const usage = json.usage ?? json.result?.usage;
 
     return {
       content,
-      usage: json.usage
+      usage: usage
         ? {
-            promptTokens: json.usage.prompt_tokens,
-            completionTokens: json.usage.completion_tokens,
-            totalTokens: json.usage.total_tokens,
+            promptTokens: parseInt(String(usage.prompt_tokens ?? usage.inputTextTokens ?? 0), 10),
+            completionTokens: parseInt(
+              String(usage.completion_tokens ?? usage.completionTokens ?? 0),
+              10,
+            ),
+            totalTokens: parseInt(String(usage.total_tokens ?? usage.totalTokens ?? 0), 10),
           }
         : undefined,
     };

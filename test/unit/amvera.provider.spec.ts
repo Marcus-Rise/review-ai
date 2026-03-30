@@ -88,7 +88,7 @@ describe('AmveraProvider', () => {
     ]);
   });
 
-  it('should not send temperature for GPT models', async () => {
+  it('should not send temperature for reasoning models (gpt-5)', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -96,11 +96,12 @@ describe('AmveraProvider', () => {
       json: () => Promise.resolve(amveraResponse('{}')),
     });
 
-    await provider.complete({ ...baseRequest, model: 'gpt-4.1' });
+    await provider.complete({ ...baseRequest, model: 'gpt-5' });
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.temperature).toBeUndefined();
+    expect(body.reasoning_effort).toBe('low');
   });
 
   it('should send temperature for non-GPT models', async () => {
@@ -118,7 +119,7 @@ describe('AmveraProvider', () => {
     expect(body.temperature).toBe(0.1);
   });
 
-  it('should send json_mode when jsonMode is true', async () => {
+  it('should send response_format json_object when jsonMode is true', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -130,7 +131,8 @@ describe('AmveraProvider', () => {
 
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(init.body);
-    expect(body.json_mode).toBe(true);
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.json_mode).toBeUndefined();
   });
 
   it('should parse Amvera response format', async () => {
