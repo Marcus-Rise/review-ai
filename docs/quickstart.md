@@ -30,37 +30,30 @@ Edit `secrets/clients.json` — set your own `api_key` and `client_secret`:
 }
 ```
 
-### 2. Choose model provider
+### 2. Choose model provider and start
 
-**Amvera (default, cloud-hosted):**
+**Ollama (self-hosted, default):**
+
+```bash
+docker compose up -d
+# or: docker compose -f docker-compose.ollama.yml up -d
+
+# Pull the model (first time only, ~4.7GB, needs ~8GB RAM)
+docker exec ai-review-model ollama pull qwen2.5-coder:7b
+```
+
+**Amvera (cloud-hosted):**
 
 ```bash
 # Add your Amvera API key
 echo "your-amvera-token" > secrets/model-api-key.txt
-# docker-compose.yml already has MODEL_PROVIDER=amvera and MODEL_NAME=gpt-5
-```
 
-**Ollama (self-hosted, requires local GPU or sufficient RAM):**
-
-In `docker-compose.yml`, set:
-```yaml
-MODEL_PROVIDER: openai
-MODEL_ENDPOINT: http://model:11434
-MODEL_NAME: qwen2.5-coder:1.5b
+docker compose -f docker-compose.amvera.yml up -d
 ```
 
 ### 3. Start services
 
-```bash
-docker compose up -d
-```
-
-If using Ollama, pull the model after startup:
-
-```bash
-# Lightweight (~1GB, needs ~4GB RAM)
-docker exec ai-review-model ollama pull qwen2.5-coder:1.5b
-```
+Already done in step 2. Verify below.
 
 ### 4. Verify
 
@@ -155,7 +148,7 @@ Edit `.env`:
 ```env
 MODEL_PROVIDER=openai
 MODEL_ENDPOINT=http://localhost:11434
-MODEL_NAME=qwen2.5-coder:1.5b
+MODEL_NAME=qwen2.5-coder:7b
 CLIENTS_CONFIG_PATH=./secrets/clients.json
 ```
 
@@ -166,7 +159,7 @@ Edit `secrets/clients.json` as shown above.
 ```bash
 # Install Ollama: https://ollama.com/download
 ollama serve
-ollama pull qwen2.5-coder:1.5b
+ollama pull qwen2.5-coder:7b
 ```
 
 ### 3. Start the service

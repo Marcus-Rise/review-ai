@@ -58,9 +58,24 @@ The service will be available at `http://localhost:3000`.
 
 ## Docker Compose (Service + Model)
 
-Two provider modes are supported — choose one:
+Each provider has its own compose file — no commented-out blocks to toggle.
 
-### Option A: Amvera (cloud, default in `docker-compose.yml`)
+### Option A: Ollama (self-hosted, default)
+
+```bash
+cp secrets/clients.example.json secrets/clients.json
+# Edit secrets/clients.json — set real api_key and client_secret
+
+docker compose up -d
+# or explicitly: docker compose -f docker-compose.ollama.yml up -d
+
+# Pull the model (first time only)
+docker exec ai-review-model ollama pull qwen2.5-coder:7b
+
+curl http://localhost:3000/healthz
+```
+
+### Option B: Amvera (cloud)
 
 ```bash
 cp secrets/clients.example.json secrets/clients.json
@@ -69,27 +84,12 @@ cp secrets/clients.example.json secrets/clients.json
 # Add your Amvera API key
 echo "your-amvera-token" > secrets/model-api-key.txt
 
-# Set MODEL_PROVIDER=amvera and MODEL_NAME in docker-compose.yml (already default)
-docker compose up -d
+docker compose -f docker-compose.amvera.yml up -d
 
 curl http://localhost:3000/healthz
 ```
 
 Supported Amvera models: `gpt-5`, `gpt-4.1`, `deepseek-R1`, `deepseek-V3`, `qwen3_30b`, `qwen3_235b`.
-
-### Option B: Ollama (self-hosted)
-
-```bash
-cp secrets/clients.example.json secrets/clients.json
-# In docker-compose.yml: set MODEL_PROVIDER=openai, MODEL_ENDPOINT=http://model:11434, MODEL_NAME=qwen2.5-coder:1.5b
-
-docker compose up -d
-
-# Pull the model (first time only)
-docker exec ai-review-model ollama pull qwen2.5-coder:1.5b
-
-curl http://localhost:3000/healthz
-```
 
 ## Docker (Service Only)
 
@@ -112,7 +112,7 @@ docker run -d \
   -p 3000:3000 \
   -e MODEL_PROVIDER=openai \
   -e MODEL_ENDPOINT=http://your-model-host:11434 \
-  -e MODEL_NAME=qwen2.5-coder:1.5b \
+  -e MODEL_NAME=qwen2.5-coder:7b \
   -e CLIENTS_CONFIG_PATH=/run/secrets/clients.json \
   -v /path/to/clients.json:/run/secrets/clients.json:ro \
   ai-review-service
