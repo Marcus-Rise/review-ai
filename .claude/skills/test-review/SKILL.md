@@ -25,10 +25,8 @@ Run a full end-to-end smoke test against the running Docker container.
      -d '{
        "api_version": "v1",
        "gitlab": {
-         "base_url": "https://gitlab.ssau.ru",
          "project_path": "lk/lk-next",
-         "mr_iid": 1032,
-         "token": "nvv2J2Mp7fvXeOATBBPbZm86MQp1OjM1CA.01.0y1358xay"
+         "mr_iid": 1032
        },
        "review": {
          "mode": "mr",

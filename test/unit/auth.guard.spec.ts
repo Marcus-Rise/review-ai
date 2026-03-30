@@ -9,6 +9,7 @@ const mockClient: ClientConfig = {
   api_key: 'test-key-123',
   client_secret: 'test-secret',
   gitlab_token: 'glpat-test',
+  gitlab_base_url: 'https://gitlab.example.com',
   enabled: true,
   allowed_endpoints: ['/api/v1/reviews/run'],
   rate_limit: { requests: 1, per_seconds: 60 },

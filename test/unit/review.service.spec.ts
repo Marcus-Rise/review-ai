@@ -14,6 +14,7 @@ const mockClient: ClientConfig = {
   api_key: 'key',
   client_secret: 'secret',
   gitlab_token: 'glpat-test',
+  gitlab_base_url: 'https://gitlab.example.com',
   enabled: true,
   allowed_endpoints: [],
   rate_limit: { requests: 10, per_seconds: 60 },
@@ -25,7 +26,6 @@ function makeDto(
   return {
     api_version: 'v1',
     gitlab: {
-      base_url: 'https://gitlab.example.com',
       mr_iid: 1,
       ...overrides,
     },

@@ -14,6 +14,7 @@ const mockClient = {
   api_key: 'test-key',
   client_secret: 'test-secret',
   gitlab_token: 'glpat-test',
+  gitlab_base_url: 'https://gitlab.example.com',
   enabled: true,
   allowed_endpoints: ['/api/v1/reviews/run'],
   rate_limit: { requests: 10, per_seconds: 60 },
@@ -71,7 +72,6 @@ const mockFindings = [
 const validPayload = {
   api_version: 'v1',
   gitlab: {
-    base_url: 'https://gitlab.example.com',
     project_path: 'group/project',
     mr_iid: 42,
   },

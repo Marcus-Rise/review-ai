@@ -214,6 +214,7 @@ Loaded from `CLIENTS_CONFIG_PATH` (JSON file):
       "api_key": "<secure random key>",
       "client_secret": "<secure random secret>",
       "gitlab_token": "<gitlab access token with api scope>",
+      "gitlab_base_url": "https://gitlab.example.com",
       "enabled": true,
       "allowed_endpoints": ["/api/v1/reviews/run"],
       "rate_limit": { "requests": 1, "per_seconds": 60 }
@@ -234,7 +235,6 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
   -d '{
     "api_version": "v1",
     "gitlab": {
-      "base_url": "https://gitlab.example.com",
       "project_path": "group/project",
       "mr_iid": 123
     },
@@ -247,7 +247,7 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
   }'
 ```
 
-> **Note:** The GitLab token is configured per client in `clients.json` — it is not passed in the request.
+> **Note:** The GitLab token and base URL are configured per client in `clients.json` — they are not passed in the request.
 
 ### Response
 
