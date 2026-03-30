@@ -11,14 +11,14 @@ services:
       PORT: "3000"
       LOG_LEVEL: info
       SWAGGER_ENABLED: "true"
-      CLIENTS_CONFIG_PATH: /run/secrets/clients.json
-      MODEL_API_KEY_PATH: /run/secrets/model-api-key.txt
+      CLIENTS_CONFIG_PATH: /run/secrets/clients-config
+      MODEL_API_KEY_PATH: /run/secrets/model-api-key
       MODEL_PROVIDER: amvera
       MODEL_NAME: gpt-5
       MODEL_TIMEOUT_MS: "120000"
-    volumes:
-      - ./secrets/clients.json:/run/secrets/clients.json:ro
-      - ./secrets/model-api-key.txt:/run/secrets/model-api-key.txt:ro
+    secrets:
+      - clients-config
+      - model-api-key
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r=>{if(!r.ok)throw r;process.exit(0)}).catch(()=>process.exit(1))"]
       interval: 15s
@@ -29,3 +29,9 @@ services:
     tmpfs:
       - /tmp
     restart: unless-stopped
+
+secrets:
+  clients-config:
+    file: ./secrets/clients.json
+  model-api-key:
+    file: ./secrets/model-api-key.txt

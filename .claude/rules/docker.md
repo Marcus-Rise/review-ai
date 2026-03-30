@@ -21,6 +21,9 @@ paths:
 - Model service (Ollama) healthcheck: `ollama list` command
 - App service: `depends_on` model with `condition: service_healthy`
 - Read-only filesystem with `tmpfs` for `/tmp`
+- Secrets: use Compose `secrets:` directive (file-based), not volume bind mounts
+- Secret names use hyphens: `clients-config`, `model-api-key`
+- Env vars point to `/run/secrets/<secret-name>` (Docker Compose default mount path)
 
 ## Runtime env gotchas
 - `process.env` values are ALWAYS strings — Fastify and other libs may reject string-typed numbers
