@@ -1,65 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ModelFinding } from '../common/interfaces';
-import { ChatCompletionRequest, ChatCompletionResponse, ModelFindingsOutput } from './model.types';
+import { ModelFindingsOutput } from './model.types';
 import { getSystemPrompt, buildUserPrompt } from './prompts/system-prompt';
 import { ReviewPacket } from '../review/review-packet.interface';
+import { ModelProvider, MODEL_PROVIDER } from './providers/model-provider.interface';
 
 @Injectable()
 export class ModelService {
   private readonly logger = new Logger(ModelService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(MODEL_PROVIDER) private readonly provider: ModelProvider,
+    private readonly configService: ConfigService,
+  ) {}
 
   async analyze(packet: ReviewPacket): Promise<ModelFinding[]> {
-    const endpoint = this.configService.get<string>('MODEL_ENDPOINT');
-    const model = this.configService.get<string>('MODEL_NAME');
+    const model = this.configService.getOrThrow<string>('MODEL_NAME');
 
-    if (!endpoint || !model) {
-      throw new Error('MODEL_ENDPOINT and MODEL_NAME must be configured');
-    }
-
-    const url = `${endpoint}/v1/chat/completions`;
-    const userPrompt = buildUserPrompt(packet);
-
-    const systemPrompt = getSystemPrompt(packet.review_profile);
-
-    const requestBody: ChatCompletionRequest = {
+    const response = await this.provider.complete({
       model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      systemPrompt: getSystemPrompt(packet.review_profile),
+      userPrompt: buildUserPrompt(packet),
       temperature: 0.1,
-      response_format: { type: 'json_object' },
-    };
-
-    this.logger.log(`Calling model ${model} at ${endpoint}`);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(
-        parseInt(this.configService.get<string>('MODEL_TIMEOUT_MS', '120000'), 10),
-      ),
+      jsonMode: true,
     });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      this.logger.error(`Model API error: ${response.status} — ${body}`);
-      throw new Error(`Model API returned ${response.status}`);
-    }
-
-    const completion: ChatCompletionResponse = await response.json();
-    const content = completion.choices?.[0]?.message?.content;
-
-    if (!content) {
+    if (!response.content) {
       this.logger.warn('Model returned empty response');
       return [];
     }
 
-    return this.parseFindings(content);
+    if (response.usage) {
+      this.logger.log(
+        `Tokens: prompt=${response.usage.promptTokens} completion=${response.usage.completionTokens}`,
+      );
+    }
+
+    return this.parseFindings(response.content);
   }
 
   private parseFindings(content: string): ModelFinding[] {

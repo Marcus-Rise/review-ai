@@ -1,0 +1,92 @@
+import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  ModelProvider,
+  ModelProviderRequest,
+  ModelProviderResponse,
+} from './model-provider.interface';
+
+const MODEL_ENDPOINT_MAP: Record<string, string> = {
+  llama8b: '/models/llama',
+  llama70b: '/models/llama',
+  'gpt-4.1': '/models/gpt',
+  'gpt-5': '/models/gpt',
+  'deepseek-R1': '/models/deepseek',
+  'deepseek-V3': '/models/deepseek',
+  qwen3_30b: '/models/qwen',
+  qwen3_235b: '/models/qwen',
+};
+
+const GPT_MODELS = new Set(['gpt-4.1', 'gpt-5']);
+
+export class AmveraProvider implements ModelProvider {
+  private readonly logger = new Logger(AmveraProvider.name);
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly apiKey: string,
+  ) {}
+
+  async complete(req: ModelProviderRequest): Promise<ModelProviderResponse> {
+    const baseUrl = this.config.getOrThrow<string>('MODEL_ENDPOINT');
+    const timeoutMs = parseInt(this.config.get<string>('MODEL_TIMEOUT_MS', '120000'), 10);
+
+    const modelPath = MODEL_ENDPOINT_MAP[req.model];
+    if (!modelPath) {
+      throw new Error(
+        `Unknown Amvera model "${req.model}". Supported: ${Object.keys(MODEL_ENDPOINT_MAP).join(', ')}`,
+      );
+    }
+
+    const url = `${baseUrl}${modelPath}`;
+    const isGpt = GPT_MODELS.has(req.model);
+
+    const body: Record<string, unknown> = {
+      model: req.model,
+      messages: [
+        { role: 'system', text: req.systemPrompt },
+        { role: 'user', text: req.userPrompt },
+      ],
+    };
+
+    if (!isGpt) {
+      body.temperature = req.temperature;
+    }
+
+    if (req.jsonMode) {
+      body.json_mode = true;
+    }
+
+    this.logger.log(`POST ${url} model=${req.model}`);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-Token': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      this.logger.error(`Amvera API error: ${res.status} — ${text}`);
+      throw new Error(`Model API returned ${res.status}`);
+    }
+
+    const json = await res.json();
+    const content = json.result?.alternatives?.[0]?.message?.text ?? '';
+
+    return {
+      content,
+      usage: json.result?.usage
+        ? {
+            promptTokens: parseInt(json.result.usage.inputTextTokens, 10),
+            completionTokens: parseInt(json.result.usage.completionTokens, 10),
+            totalTokens: parseInt(json.result.usage.totalTokens, 10),
+          }
+        : undefined,
+    };
+  }
+}
