@@ -30,6 +30,7 @@ services:
       MODEL_API_KEY_PATH: /run/secrets/model-api-key.txt
 #      MODEL_PROVIDER: openai
       MODEL_PROVIDER: amvera
+      MODEL_ENDPOINT: https://kong-proxy.yc.amvera.ru/api/v1
 #      MODEL_ENDPOINT: http://model:11434
 #      MODEL_NAME: qwen2.5-coder:1.5b
       MODEL_NAME: gpt-5
