@@ -8,9 +8,9 @@ import {
 } from './review-packet.interface';
 import { buildDiscussionFingerprint } from './fingerprint.util';
 
-const MAX_FILES = 50;
-const MAX_DIFF_CHARS_PER_FILE = 10_000;
-const MAX_TOTAL_DIFF_CHARS = 100_000;
+const MAX_FILES = 20;
+const MAX_DIFF_CHARS_PER_FILE = 4_000;
+const MAX_TOTAL_DIFF_CHARS = 12_000;
 
 const FILTERED_EXTENSIONS =
   /\.(min\.js|min\.css|lock|map|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|pdf|zip|tar|gz|bin|exe|dll|so|dylib)$/i;

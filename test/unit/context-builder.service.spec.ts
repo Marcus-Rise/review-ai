@@ -140,8 +140,8 @@ describe('ContextBuilderService', () => {
     (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(manyChanges);
     const service = new ContextBuilderService(gitlabService);
     const packet = await service.build(mockGitlab, 'default');
-    expect(packet.changes.length).toBeLessThanOrEqual(50);
-    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('50')]));
+    expect(packet.changes.length).toBeLessThanOrEqual(20);
+    expect(packet.warnings).toEqual(expect.arrayContaining([expect.stringContaining('20')]));
   });
 
   it('should enforce total diff char limit across all files', async () => {

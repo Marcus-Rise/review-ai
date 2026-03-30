@@ -68,7 +68,8 @@ export class AmveraProvider implements ModelProvider {
       body.response_format = { type: 'json_object' };
     }
 
-    this.logger.log(`POST ${url} model=${req.model}`);
+    const bodyStr = JSON.stringify(body);
+    this.logger.log(`POST ${url} model=${req.model} body=${bodyStr.length}b`);
 
     const res = await fetch(url, {
       method: 'POST',
@@ -76,7 +77,7 @@ export class AmveraProvider implements ModelProvider {
         'Content-Type': 'application/json',
         'X-Auth-Token': `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify(body),
+      body: bodyStr,
       signal: AbortSignal.timeout(timeoutMs),
     });
 

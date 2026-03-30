@@ -6,7 +6,7 @@
 
 ## Context
 
-`AmveraProvider` was implemented based on `docs.amvera.ru` documentation and the Swagger spec at `lllm-swagger-amvera-services.amvera.io`. During live testing, several discrepancies between spec and actual API behavior were found.
+`AmveraProvider` was implemented based on `docs.amvera.ru` documentation and the Swagger spec at `lllm-swagger-amvera-services.amvera.io` (saved as `docs/amvera-openapi.json`). During live testing, several discrepancies between spec and actual API behavior were found.
 
 ---
 
@@ -54,6 +54,25 @@
 **Cause:** `gpt-5` is a reasoning model (GPT-5 uses internal chain-of-thought). Without a cap, it exceeds the gateway timeout on real-size code review prompts.
 
 **Decision:** `gpt-5` placed in `REASONING_MODELS` set — gets `reasoning_effort: "low"` instead of `temperature`. `gpt-4.1` is NOT a reasoning model and gets `temperature` normally.
+
+---
+
+---
+
+### Kong gateway body size limit: ~17KB
+
+**Swagger spec** — не задокументировано.
+
+**Empirical test** — бинарный поиск: тела >17KB возвращают `400 Invalid JSON object in request body` от Kong proxy. Лимит находится между 16875 и 17187 байт.
+
+**Impact:** MR с большим diff (34+ файлов) падали с 400 даже при валидном JSON.
+
+**Decision:** снижены лимиты в `ContextBuilderService`:
+- `MAX_FILES`: 50 → 20
+- `MAX_DIFF_CHARS_PER_FILE`: 10000 → 4000
+- `MAX_TOTAL_DIFF_CHARS`: 100000 → 12000
+
+Это даёт body ~14KB при полном использовании лимитов (diff 12K + system prompt ~1.5K + overhead ~0.5K + JSON escaping ~10%).
 
 ---
 
