@@ -68,7 +68,7 @@ describe('AmveraProvider', () => {
     expect(init.headers['X-Auth-Token']).toBe('Bearer my-secret-token');
   });
 
-  it('should use content field in messages (OpenAI-compatible format)', async () => {
+  it('should use text field in messages (Amvera spec format)', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({

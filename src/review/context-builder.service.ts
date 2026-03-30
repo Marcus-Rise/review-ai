@@ -23,8 +23,11 @@ export class ContextBuilderService {
     private readonly gitlab: GitLabService,
     @Inject(CONTEXT_LIMITS) private readonly limits: ContextLimits,
   ) {
+    const bytesInfo = this.limits.maxTotalDiffBytes
+      ? `, ${this.limits.maxTotalDiffBytes}b total bytes`
+      : '';
     this.logger.log(
-      `Context limits: ${this.limits.maxFiles} files, ${this.limits.maxDiffCharsPerFile}/file, ${this.limits.maxTotalDiffChars} total`,
+      `Context limits: ${this.limits.maxFiles} files, ${this.limits.maxDiffCharsPerFile}/file, ${this.limits.maxTotalDiffChars} total${bytesInfo}`,
     );
   }
 
@@ -130,6 +133,7 @@ export class ContextBuilderService {
 
     // 3. Truncate per-file diffs and enforce total limit
     let totalChars = 0;
+    let totalBytes = 0;
     const result: ReviewFileChange[] = [];
     for (const change of bounded) {
       let diff = change.diff;
@@ -140,6 +144,16 @@ export class ContextBuilderService {
       if (totalChars + diff.length > this.limits.maxTotalDiffChars) {
         warnings.push(`Total diff size limit reached at ${change.path}, remaining files excluded`);
         break;
+      }
+      if (this.limits.maxTotalDiffBytes) {
+        const diffBytes = Buffer.byteLength(diff, 'utf-8');
+        if (totalBytes + diffBytes > this.limits.maxTotalDiffBytes) {
+          warnings.push(
+            `Total diff byte limit reached at ${change.path}, remaining files excluded`,
+          );
+          break;
+        }
+        totalBytes += diffBytes;
       }
       totalChars += diff.length;
       result.push({ ...change, diff });

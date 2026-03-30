@@ -137,7 +137,8 @@ The service automatically bounds the review context sent to the model. Limits ar
 | Max files per review | 50 | 20 |
 | Max diff chars per file | 10,000 | 4,000 |
 | Max total diff chars | 100,000 | 12,000 |
+| Max total diff bytes (UTF-8) | — | 13,000 |
 
-**Why the difference?** Amvera uses a Kong gateway proxy with a ~17 KB request body limit. Local models (Ollama) and direct OpenAI API have no such restriction, so they can process significantly larger MRs in a single review pass.
+**Why the difference?** Amvera uses a Kong gateway proxy with a ~17 KB request body limit (in bytes, not characters). Multi-byte characters (e.g. Cyrillic = 2 bytes/char in UTF-8) can cause the byte count to significantly exceed the character count. The byte limit prevents overflow for non-ASCII content. Local models (Ollama) and direct OpenAI API have no such restriction.
 
 Limits are selected automatically based on `MODEL_PROVIDER` env variable.

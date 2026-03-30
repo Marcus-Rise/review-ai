@@ -63,7 +63,8 @@ export class AmveraProvider implements ModelProvider {
     }
 
     const bodyStr = JSON.stringify(body);
-    this.logger.log(`POST ${url} model=${req.model} body=${bodyStr.length}b`);
+    const byteSize = Buffer.byteLength(bodyStr, 'utf-8');
+    this.logger.log(`POST ${url} model=${req.model} body=${bodyStr.length}ch/${byteSize}b`);
 
     const res = await fetch(url, {
       method: 'POST',
