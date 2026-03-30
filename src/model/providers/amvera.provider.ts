@@ -46,17 +46,19 @@ export class AmveraProvider implements ModelProvider {
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
-        { role: 'system', text: req.systemPrompt },
-        { role: 'user', text: req.userPrompt },
+        { role: 'system', content: req.systemPrompt },
+        { role: 'user', content: req.userPrompt },
       ],
     };
 
-    if (!isGpt) {
+    if (isGpt) {
+      body.reasoning_effort = 'low';
+    } else {
       body.temperature = req.temperature;
     }
 
     if (req.jsonMode) {
-      body.json_mode = true;
+      body.response_format = { type: 'json_object' };
     }
 
     this.logger.log(`POST ${url} model=${req.model}`);
@@ -78,15 +80,15 @@ export class AmveraProvider implements ModelProvider {
     }
 
     const json = await res.json();
-    const content = json.result?.alternatives?.[0]?.message?.text ?? '';
+    const content = json.choices?.[0]?.message?.content ?? '';
 
     return {
       content,
-      usage: json.result?.usage
+      usage: json.usage
         ? {
-            promptTokens: parseInt(json.result.usage.inputTextTokens, 10),
-            completionTokens: parseInt(json.result.usage.completionTokens, 10),
-            totalTokens: parseInt(json.result.usage.totalTokens, 10),
+            promptTokens: json.usage.prompt_tokens,
+            completionTokens: json.usage.completion_tokens,
+            totalTokens: json.usage.total_tokens,
           }
         : undefined,
     };

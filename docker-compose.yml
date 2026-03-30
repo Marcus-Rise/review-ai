@@ -27,12 +27,16 @@ services:
       LOG_LEVEL: info
       SWAGGER_ENABLED: "true"
       CLIENTS_CONFIG_PATH: /run/secrets/clients.json
-      MODEL_PROVIDER: openai
-      MODEL_ENDPOINT: http://model:11434
-      MODEL_NAME: qwen2.5-coder:1.5b
+      MODEL_API_KEY_PATH: /run/secrets/model-api-key.txt
+#      MODEL_PROVIDER: openai
+      MODEL_PROVIDER: amvera
+#      MODEL_ENDPOINT: http://model:11434
+#      MODEL_NAME: qwen2.5-coder:1.5b
+      MODEL_NAME: gpt-5
       MODEL_TIMEOUT_MS: "120000"
     volumes:
       - ./secrets/clients.json:/run/secrets/clients.json:ro
+      - ./secrets/model-api-key.txt:/run/secrets/model-api-key.txt:ro
     depends_on:
       model:
         condition: service_healthy
