@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { GitLabService } from '../gitlab/gitlab.service';
 import { GitLabConfig } from '../common/interfaces';
 import {
@@ -8,9 +9,24 @@ import {
 } from './review-packet.interface';
 import { buildDiscussionFingerprint } from './fingerprint.util';
 
-const MAX_FILES = 20;
-const MAX_DIFF_CHARS_PER_FILE = 4_000;
-const MAX_TOTAL_DIFF_CHARS = 12_000;
+export interface ContextLimits {
+  maxFiles: number;
+  maxDiffCharsPerFile: number;
+  maxTotalDiffChars: number;
+}
+
+export const PROVIDER_LIMITS: Record<string, ContextLimits> = {
+  openai: {
+    maxFiles: 50,
+    maxDiffCharsPerFile: 10_000,
+    maxTotalDiffChars: 100_000,
+  },
+  amvera: {
+    maxFiles: 20,
+    maxDiffCharsPerFile: 4_000,
+    maxTotalDiffChars: 12_000,
+  },
+};
 
 const FILTERED_EXTENSIONS =
   /\.(min\.js|min\.css|lock|map|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|pdf|zip|tar|gz|bin|exe|dll|so|dylib)$/i;
@@ -21,8 +37,18 @@ const FILTERED_PATHS = /(?:^|\/)(vendor|node_modules|dist|\.yarn)\//;
 @Injectable()
 export class ContextBuilderService {
   private readonly logger = new Logger(ContextBuilderService.name);
+  private readonly limits: ContextLimits;
 
-  constructor(private readonly gitlab: GitLabService) {}
+  constructor(
+    private readonly gitlab: GitLabService,
+    private readonly config: ConfigService,
+  ) {
+    const provider = this.config.get<string>('MODEL_PROVIDER', 'openai');
+    this.limits = PROVIDER_LIMITS[provider] ?? PROVIDER_LIMITS.openai;
+    this.logger.log(
+      `Context limits: ${this.limits.maxFiles} files, ${this.limits.maxDiffCharsPerFile}/file, ${this.limits.maxTotalDiffChars} total (provider: ${provider})`,
+    );
+  }
 
   async build(
     gitlabConfig: GitLabConfig,
@@ -119,9 +145,9 @@ export class ContextBuilderService {
 
     // 2. Limit file count
     let bounded = filtered;
-    if (bounded.length > MAX_FILES) {
-      warnings.push(`Truncated from ${bounded.length} to ${MAX_FILES} files`);
-      bounded = bounded.slice(0, MAX_FILES);
+    if (bounded.length > this.limits.maxFiles) {
+      warnings.push(`Truncated from ${bounded.length} to ${this.limits.maxFiles} files`);
+      bounded = bounded.slice(0, this.limits.maxFiles);
     }
 
     // 3. Truncate per-file diffs and enforce total limit
@@ -129,11 +155,11 @@ export class ContextBuilderService {
     const result: ReviewFileChange[] = [];
     for (const change of bounded) {
       let diff = change.diff;
-      if (diff.length > MAX_DIFF_CHARS_PER_FILE) {
-        diff = diff.slice(0, MAX_DIFF_CHARS_PER_FILE) + '\n... [truncated]';
-        warnings.push(`${change.path}: diff truncated to ${MAX_DIFF_CHARS_PER_FILE} chars`);
+      if (diff.length > this.limits.maxDiffCharsPerFile) {
+        diff = diff.slice(0, this.limits.maxDiffCharsPerFile) + '\n... [truncated]';
+        warnings.push(`${change.path}: diff truncated to ${this.limits.maxDiffCharsPerFile} chars`);
       }
-      if (totalChars + diff.length > MAX_TOTAL_DIFF_CHARS) {
+      if (totalChars + diff.length > this.limits.maxTotalDiffChars) {
         warnings.push(`Total diff size limit reached at ${change.path}, remaining files excluded`);
         break;
       }

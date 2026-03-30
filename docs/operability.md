@@ -9,7 +9,7 @@
 
 Readiness checks:
 - `clients_loaded` — client auth config loaded successfully
-- `model_endpoint_configured` — `MODEL_ENDPOINT` env var set
+- `model_provider_configured` — `MODEL_PROVIDER` env var set (defaults to `openai`)
 - `model_name_configured` — `MODEL_NAME` env var set
 
 ## Logging

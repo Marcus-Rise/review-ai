@@ -275,7 +275,7 @@ The service caches responses by this key (in-memory, 5 min TTL).
 | `Connection refused` on model | Ensure model service is running and accessible (Ollama: check `ollama serve`; Amvera: check API key and network) |
 | Suggestions not appearing | Only created when the fix is local, small, and safe — not for broad issues |
 | `status: "partial"` in response | Some discussions failed to publish — check `errors` array for details |
-| `warnings` mentions truncation | MR is large; some files/diffs were bounded to fit the model context |
+| `warnings` mentions truncation | MR is large; context limits are provider-specific (see README Provider Comparison) |
 
 ## Next step: GitLab CI integration
 

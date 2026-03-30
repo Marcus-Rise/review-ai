@@ -84,10 +84,12 @@ LLaMA (`/models/llama`) — **removed**, deprecated by Amvera.
 
 **Impact:** MR с большим diff (34+ файлов) падали с 400 даже при валидном JSON.
 
-**Decision:** снижены лимиты в `ContextBuilderService`:
-- `MAX_FILES`: 50 → 20
-- `MAX_DIFF_CHARS_PER_FILE`: 10000 → 4000
-- `MAX_TOTAL_DIFF_CHARS`: 100000 → 12000
+**Decision:** provider-specific limits in `ContextBuilderService` (applied only when `MODEL_PROVIDER=amvera`):
+- `maxFiles`: 20 (vs 50 for openai)
+- `maxDiffCharsPerFile`: 4,000 (vs 10,000 for openai)
+- `maxTotalDiffChars`: 12,000 (vs 100,000 for openai)
+
+Local models (Ollama) and direct OpenAI API are not affected by these restrictions.
 
 ---
 

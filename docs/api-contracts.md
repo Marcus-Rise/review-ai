@@ -126,10 +126,22 @@ Swagger / OpenAPI documentation (when `SWAGGER_ENABLED=true`).
 
 ## Context Bounding
 
-The service automatically bounds the review context sent to the model:
+The service automatically bounds the review context sent to the model. Limits are **provider-specific** — cloud providers with gateway body size restrictions get tighter limits, while local/OpenAI-compatible models get generous defaults.
+
+### Common filtering (all providers)
 
 - Binary and generated files are filtered out (`.min.js`, `.lock`, `.map`, image formats, etc.)
 - Files under `vendor/`, `node_modules/`, `dist/`, `.yarn/` are excluded
-- Maximum **20 files** per review; excess files are dropped with a warning
-- Individual diffs truncated at **4,000 chars**; total diff capped at **12,000 chars**
 - Truncation warnings are included in the response `warnings` array
+
+### Provider-specific limits
+
+| Limit | `openai` (Ollama, OpenAI, Groq) | `amvera` (cloud) |
+|-------|:-------------------------------:|:----------------:|
+| Max files per review | 50 | 20 |
+| Max diff chars per file | 10,000 | 4,000 |
+| Max total diff chars | 100,000 | 12,000 |
+
+**Why the difference?** Amvera uses a Kong gateway proxy with a ~17 KB request body limit. Local models (Ollama) and direct OpenAI API have no such restriction, so they can process significantly larger MRs in a single review pass.
+
+Limits are selected automatically based on `MODEL_PROVIDER` env variable.

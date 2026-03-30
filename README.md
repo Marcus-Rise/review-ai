@@ -118,6 +118,54 @@ docker run -d \
   ai-review-service
 ```
 
+## Provider Comparison
+
+| Capability | `openai` (Ollama / OpenAI / Groq) | `amvera` (cloud) |
+|------------|:---------------------------------:|:----------------:|
+| Self-hosted | Yes (Ollama) / No (OpenAI, Groq) | No |
+| API key required | No (Ollama) / Yes (OpenAI, Groq) | Yes |
+| Max files per review | 50 | 20 |
+| Max diff chars/file | 10,000 | 4,000 |
+| Max total diff chars | 100,000 | 12,000 |
+| Request body limit | Unlimited (local) | ~17 KB (Kong gateway) |
+| Latency | Depends on hardware | 5–60s depending on model |
+| Cost | Free (Ollama) / Pay-per-token | Pay-per-request |
+
+Limits are applied automatically by `ContextBuilderService` based on `MODEL_PROVIDER`.
+
+### Ollama Hardware Requirements
+
+Ollama runs models locally. Minimum requirements depend on model size:
+
+| Model | Parameters | RAM (CPU) | VRAM (GPU) | Notes |
+|-------|:----------:|:---------:|:----------:|-------|
+| `qwen2.5-coder:1.5b` | 1.5B | 4 GB | 2 GB | Fastest, basic quality |
+| `qwen2.5-coder:7b` | 7B | 8 GB | 6 GB | Good balance for code review |
+| `qwen2.5-coder:14b` | 14B | 16 GB | 10 GB | Higher quality findings |
+| `qwen2.5-coder:32b` | 32B | 32 GB | 24 GB | Best quality, slow on CPU |
+| `codellama:13b` | 13B | 16 GB | 10 GB | Meta's code-focused model |
+| `deepseek-coder-v2:16b` | 16B | 16 GB | 12 GB | Strong at code reasoning |
+
+**GPU vs CPU:**
+- **With GPU (NVIDIA):** Models run 5–20x faster. Recommended for 7B+ models. Requires `nvidia-container-toolkit` for Docker.
+- **CPU only:** Viable for 1.5B–7B models. 14B+ models will be very slow (minutes per review).
+- **Apple Silicon (M1/M2/M3):** Ollama uses Metal acceleration natively. 7B–14B models work well.
+
+**Recommendation:** Start with `qwen2.5-coder:7b` (best quality/speed ratio). Use `1.5b` for testing, `14b+` if you have a GPU.
+
+### Amvera Supported Models
+
+| Model | Type | Notes |
+|-------|------|-------|
+| `gpt-5` | Reasoning | Uses `reasoning_effort: "low"` to avoid 60s timeout |
+| `gpt-4.1` | Standard | Good general-purpose |
+| `deepseek-R1` | Reasoning | DeepSeek reasoning model |
+| `deepseek-V3` | Standard | DeepSeek standard |
+| `qwen3_30b` | Standard | Alibaba Qwen 30B |
+| `qwen3_235b` | Standard | Alibaba Qwen 235B |
+
+See [docs/providers/amvera/findings.md](docs/providers/amvera/findings.md) for API specifics.
+
 ## Configuration
 
 ### Environment Variables
