@@ -302,11 +302,12 @@ Push or update an MR — a manual `ai-review` job appears in the pipeline. Click
 
 ### 4. Enable auto-trigger (optional)
 
-To run review automatically on every MR push:
+To run review automatically on every MR push, set `AI_REVIEW_AUTO` to `true` in the project's CI/CD variables, or override in `.gitlab-ci.yml`:
 
 ```yaml
 ai-review:
-  extends: .ai-review-auto
+  variables:
+    AI_REVIEW_AUTO: "true"
 ```
 
 For the standalone inline job (no `include`), see [`.gitlab-ci.yml.example`](../.gitlab-ci.yml.example).

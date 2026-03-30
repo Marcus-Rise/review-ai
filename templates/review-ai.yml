@@ -12,10 +12,12 @@
 #   AI_REVIEW_API_KEY     - Bearer token matching clients.json on the service
 #   AI_REVIEW_CLIENT_ID   - Client ID matching clients.json on the service
 #
-# The template provides three jobs:
-#   .ai-review      - hidden base job (extend for full customization)
-#   ai-review        - manual trigger in MR pipelines (ready to use)
-#   .ai-review-auto  - hidden auto-trigger variant (extend to enable)
+# Optional variables:
+#   AI_REVIEW_AUTO    - set to "true" to trigger automatically on MR push (default: manual)
+#
+# The template provides:
+#   .ai-review  - hidden base job (extend for full customization)
+#   ai-review   - concrete job, manual by default, auto when AI_REVIEW_AUTO == "true"
 
 # --- Hidden base job ---
 .ai-review:
@@ -62,21 +64,13 @@
         exit 1
       fi
 
-# --- Default: manual trigger in MR pipelines ---
+# --- Concrete job: auto when AI_REVIEW_AUTO == "true", manual otherwise ---
 ai-review:
   extends: .ai-review
   rules:
+    - if: $CI_MERGE_REQUEST_IID && $AI_REVIEW_AUTO == "true"
+      when: on_success
+      allow_failure: true
     - if: $CI_MERGE_REQUEST_IID
       when: manual
-      allow_failure: true
-
-# --- Auto-trigger variant (extend this in your project for auto-review) ---
-# Usage in client project:
-#   ai-review:
-#     extends: .ai-review-auto
-.ai-review-auto:
-  extends: .ai-review
-  rules:
-    - if: $CI_MERGE_REQUEST_IID
-      when: on_success
       allow_failure: true

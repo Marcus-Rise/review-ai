@@ -297,12 +297,15 @@ This adds a manual `ai-review` job to every MR pipeline.
 
 ### Auto-trigger
 
-To run review automatically on every MR push, override the job:
+To run review automatically on every MR push, set the `AI_REVIEW_AUTO` variable:
 
 ```yaml
 ai-review:
-  extends: .ai-review-auto
+  variables:
+    AI_REVIEW_AUTO: "true"
 ```
+
+Or set `AI_REVIEW_AUTO` to `true` in the project's CI/CD variables (Settings > CI/CD > Variables).
 
 ### Customization
 

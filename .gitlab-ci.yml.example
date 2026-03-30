@@ -25,10 +25,11 @@ include:
 #       REVIEW_PROFILE: "security"
 #       REVIEW_USER_FOCUS: "Focus on auth and input validation"
 #
-# To enable automatic review on every MR push:
+# To enable automatic review on every MR push, set AI_REVIEW_AUTO in CI/CD variables:
 #
 #   ai-review:
-#     extends: .ai-review-auto
+#     variables:
+#       AI_REVIEW_AUTO: "true"
 #
 # Required CI/CD variables (set as masked secrets in project settings):
 #   AI_REVIEW_SERVICE_URL - URL of the review-ai service
