@@ -1,5 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { GitLabService } from '../gitlab/gitlab.service';
 import { GitLabConfig } from '../common/interfaces';
 import {
@@ -8,25 +7,7 @@ import {
   ReviewFileChange,
 } from './review-packet.interface';
 import { buildDiscussionFingerprint } from './fingerprint.util';
-
-export interface ContextLimits {
-  maxFiles: number;
-  maxDiffCharsPerFile: number;
-  maxTotalDiffChars: number;
-}
-
-export const PROVIDER_LIMITS: Record<string, ContextLimits> = {
-  openai: {
-    maxFiles: 50,
-    maxDiffCharsPerFile: 10_000,
-    maxTotalDiffChars: 100_000,
-  },
-  amvera: {
-    maxFiles: 20,
-    maxDiffCharsPerFile: 4_000,
-    maxTotalDiffChars: 12_000,
-  },
-};
+import { CONTEXT_LIMITS, ContextLimits } from './context-limits';
 
 const FILTERED_EXTENSIONS =
   /\.(min\.js|min\.css|lock|map|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|pdf|zip|tar|gz|bin|exe|dll|so|dylib)$/i;
@@ -37,16 +18,13 @@ const FILTERED_PATHS = /(?:^|\/)(vendor|node_modules|dist|\.yarn)\//;
 @Injectable()
 export class ContextBuilderService {
   private readonly logger = new Logger(ContextBuilderService.name);
-  private readonly limits: ContextLimits;
 
   constructor(
     private readonly gitlab: GitLabService,
-    private readonly config: ConfigService,
+    @Inject(CONTEXT_LIMITS) private readonly limits: ContextLimits,
   ) {
-    const provider = this.config.get<string>('MODEL_PROVIDER', 'openai');
-    this.limits = PROVIDER_LIMITS[provider] ?? PROVIDER_LIMITS.openai;
     this.logger.log(
-      `Context limits: ${this.limits.maxFiles} files, ${this.limits.maxDiffCharsPerFile}/file, ${this.limits.maxTotalDiffChars} total (provider: ${provider})`,
+      `Context limits: ${this.limits.maxFiles} files, ${this.limits.maxDiffCharsPerFile}/file, ${this.limits.maxTotalDiffChars} total`,
     );
   }
 
