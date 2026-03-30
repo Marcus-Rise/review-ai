@@ -47,8 +47,8 @@ export class AmveraProvider implements ModelProvider {
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
-        { role: 'system', text: req.systemPrompt },
-        { role: 'user', text: req.userPrompt },
+        { role: 'system', content: req.systemPrompt },
+        { role: 'user', content: req.userPrompt },
       ],
     };
 
@@ -84,7 +84,7 @@ export class AmveraProvider implements ModelProvider {
     const json = await res.json();
 
     const message = json.choices?.[0]?.message;
-    const content = message?.text ?? message?.content ?? '';
+    const content = message?.content ?? message?.text ?? '';
 
     return {
       content,
