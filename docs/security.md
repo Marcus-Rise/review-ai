@@ -49,6 +49,23 @@ The `user_focus` field is sanitized:
 - No unnecessary Linux capabilities
 - Health endpoints for orchestration
 
+## HTTP Security Headers
+
+The service registers `@fastify/helmet` to set production security headers on all responses:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `Content-Security-Policy` | `default-src 'self'` (relaxed for Swagger) | Prevents XSS and data injection |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
+| `X-Frame-Options` | `DENY` | Prevents clickjacking |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Enforces HTTPS (2-year max-age) |
+| `X-DNS-Prefetch-Control` | `off` | Disables DNS prefetching |
+| `Referrer-Policy` | `no-referrer` | Prevents referrer leakage |
+
+When Swagger UI is enabled (`SWAGGER_ENABLED=true`), the CSP `style-src` directive includes `'unsafe-inline'` and `img-src` includes `data:` to allow Swagger UI rendering.
+
+No additional environment variables are required.
+
 ## Rate Limiting
 
 - Per-client + per-target MR rate limits

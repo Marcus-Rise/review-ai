@@ -3,6 +3,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from '@fastify/helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { RequestIdInterceptor } from './common/request-id.interceptor';
@@ -27,6 +28,26 @@ async function bootstrap() {
   const appConfigService = app.get(ConfigService);
   const port = appConfigService.get<number>('PORT', 3000);
   const swaggerEnabled = appConfigService.get<string>('SWAGGER_ENABLED', 'true') === 'true';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(helmet as any, {
+    contentSecurityPolicy: swaggerEnabled
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:'],
+            fontSrc: ["'self'"],
+          },
+        }
+      : undefined,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'no-referrer' },
+    hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+    frameguard: { action: 'deny' },
+    dnsPrefetchControl: { allow: false },
+  });
 
   app.useGlobalInterceptors(new RequestIdInterceptor(), app.get(TimeoutInterceptor));
   app.useGlobalFilters(new GlobalExceptionFilter());
