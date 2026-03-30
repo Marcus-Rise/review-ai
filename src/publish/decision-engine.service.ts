@@ -97,12 +97,20 @@ export class DecisionEngineService {
 
     return existing.find((d) => {
       if (d.fingerprint === findingFp) return true;
-      // Also match by exact file + line + similar topic
-      return (
-        d.file_path === finding.file_path &&
-        d.line === finding.line &&
-        d.body.toLowerCase().includes(finding.category)
+      // Fallback: same file + line + category + meaningful risk_statement overlap
+      if (d.file_path !== finding.file_path || d.line !== finding.line) return false;
+      if (!d.body.toLowerCase().includes(finding.category.toLowerCase())) return false;
+
+      const findingWords = new Set(
+        this.normalizeForComparison(finding.risk_statement)
+          .split(/\s+/)
+          .filter((w) => w.length > 3),
       );
+      const bodyWords = this.normalizeForComparison(d.body).split(/\s+/);
+      const overlap = bodyWords.filter((w) => findingWords.has(w)).length;
+      // Relax threshold for concise findings with few significant tokens
+      const threshold = findingWords.size <= 2 ? 1 : 2;
+      return overlap >= threshold;
     });
   }
 
@@ -116,8 +124,16 @@ export class DecisionEngineService {
         d.file_path === finding.file_path &&
         d.line !== undefined &&
         Math.abs(d.line - finding.line) <= LINE_PROXIMITY &&
-        !d.resolved,
+        !d.resolved &&
+        d.body.toLowerCase().includes(finding.category.toLowerCase()),
     );
+  }
+
+  private normalizeForComparison(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .trim();
   }
 
   private isSuggestionSafe(finding: ModelFinding): boolean {

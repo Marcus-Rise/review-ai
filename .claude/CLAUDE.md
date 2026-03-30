@@ -57,3 +57,23 @@ pnpm test          # jest unit
 pnpm test:e2e      # jest e2e (requires running deps)
 pnpm build         # nest build
 ```
+
+## Documentation consistency
+
+After any code change that affects public API contracts, response shapes, request headers, auth behavior, or architectural patterns:
+
+1. Check all docs (`docs/*.md`, `README.md`, `ai-review-service-spec-2.md`) for consistency with the updated code
+2. Update response examples, request schemas, header lists, status values, and error formats
+3. Keep curl examples in `docs/quickstart.md` and `README.md` in sync with the actual DTO/controller signatures
+4. Never leave stale API examples — they mislead integrators more than missing docs
+
+## Responding to PR review comments
+
+When a `<github-webhook-activity>` arrives with a review comment:
+
+1. **Investigate immediately** — read the referenced file and line, understand the reviewer's concern
+2. **Check if already fixed** — search recent commits (`git log --oneline -10`) and current code to see if the issue was addressed
+3. **If fixed**: post a reply via `mcp__github__add_reply_to_pull_request_comment` explaining what was done (commit ref + brief description). Then attempt to resolve the thread via `mcp__github__resolve_review_thread` (requires `threadId` in `PRT_` GraphQL format — if unavailable, skip silently)
+4. **If not fixed and tractable**: fix the code, commit, push, then reply with the fix reference
+5. **If ambiguous**: use `AskUserQuestion` before acting — include the reviewer's comment and your interpretation
+6. **Batch**: if multiple comments arrive at once, process all before pushing — one commit covering all fixes is preferred over one-per-comment

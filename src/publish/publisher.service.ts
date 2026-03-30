@@ -15,6 +15,7 @@ export class PublisherService {
     gitlabConfig: GitLabConfig,
     diffRefs: { base_sha: string; head_sha: string; start_sha: string },
     dryRun: boolean,
+    fileChanges?: Array<{ path: string; old_path: string; renamed_file: boolean }>,
   ): Promise<{ results: PublishResult[]; reviewActions: ReviewAction[] }> {
     const results: PublishResult[] = [];
     const reviewActions: ReviewAction[] = [];
@@ -51,7 +52,7 @@ export class PublisherService {
       }
 
       try {
-        const result = await this.executeAction(action, gitlabConfig, diffRefs);
+        const result = await this.executeAction(action, gitlabConfig, diffRefs, fileChanges);
         results.push(result);
         const body =
           action.decision === 'reply'
@@ -92,6 +93,7 @@ export class PublisherService {
     action: PublishAction,
     config: GitLabConfig,
     diffRefs: { base_sha: string; head_sha: string; start_sha: string },
+    fileChanges?: Array<{ path: string; old_path: string; renamed_file: boolean }>,
   ): Promise<PublishResult> {
     const { finding, decision } = action;
 
@@ -117,13 +119,28 @@ export class PublisherService {
         ? this.formatSuggestionBody(finding)
         : this.formatDiscussionBody(finding);
 
+    // If not suitable for inline comment, post as general MR note
+    if (!finding.is_inline_comment) {
+      const locationRef =
+        finding.end_line && finding.end_line !== finding.line
+          ? `${finding.file_path} (Lines ${finding.line}\u2013${finding.end_line})`
+          : `${finding.file_path}:${finding.line}`;
+      const generalBody = `> **${locationRef}**\n\n${body}`;
+      const discussion = await this.gitlab.createDiscussion(config, { body: generalBody });
+      return { action, success: true, discussion_id: discussion.id };
+    }
+
+    // Build inline position
+    const fileChange = fileChanges?.find((c) => c.path === finding.file_path);
+    const oldPath = fileChange?.old_path || finding.file_path;
+
     const position: GitLabDiffPositionPayload = {
       position_type: 'text',
       base_sha: diffRefs.base_sha,
       start_sha: diffRefs.start_sha,
       head_sha: diffRefs.head_sha,
       new_path: finding.file_path,
-      old_path: finding.file_path,
+      old_path: oldPath,
       new_line: finding.line,
     };
 
@@ -149,7 +166,12 @@ export class PublisherService {
   private formatDiscussionBody(finding: import('../common/interfaces').ModelFinding): string {
     const severity = finding.severity.toUpperCase();
     const category = finding.category;
+    const rangeNote =
+      finding.end_line && finding.end_line !== finding.line
+        ? `*Lines ${finding.line}\u2013${finding.end_line}*\n\n`
+        : '';
     return (
+      `${rangeNote}` +
       `**[${severity}]** ${finding.risk_statement}\n\n` +
       `**Category:** ${category} | **Confidence:** ${finding.confidence}\n\n` +
       `${finding.rationale}`

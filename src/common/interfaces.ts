@@ -15,12 +15,19 @@ export interface ReviewSummary {
   dry_run: boolean;
 }
 
+export interface PublishError {
+  path: string;
+  line: number;
+  error: string;
+}
+
 export interface ReviewResponse {
   request_id: string;
-  status: 'ok' | 'error';
+  status: 'ok' | 'partial' | 'error';
   summary: ReviewSummary;
   actions: ReviewAction[];
   warnings: string[];
+  errors: PublishError[];
 }
 
 export interface ModelFinding {

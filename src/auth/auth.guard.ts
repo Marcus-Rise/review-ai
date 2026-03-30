@@ -62,6 +62,12 @@ export class AuthGuard implements CanActivate {
     const timestamp = request.headers['x-request-timestamp'] as string | undefined;
     const signature = request.headers['x-request-signature'] as string | undefined;
 
+    if (!!timestamp !== !!signature) {
+      throw new UnauthorizedException(
+        'Incomplete HMAC headers: both x-request-timestamp and x-request-signature are required when either is present',
+      );
+    }
+
     if (timestamp && signature) {
       // Note: We use JSON.stringify(body) rather than the raw HTTP payload because
       // Fastify parses the body before guards execute and does not expose rawBody

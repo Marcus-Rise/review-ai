@@ -12,10 +12,13 @@
 - `X-Request-Timestamp: <unix_timestamp>` — must be within 5 minutes
 - `X-Request-Signature: HMAC_SHA256(body + timestamp, client_secret)` — hex-encoded
 
+> **Important:** Both HMAC headers must be present together. Sending only one of `X-Request-Timestamp` or `X-Request-Signature` is rejected as a malformed request (401).
+
 ### Outbound (Service → GitLab)
 
-- GitLab token passed per-request in the body (`gitlab.token`)
-- Handled in-memory only
+- GitLab token passed per-request in the body (`gitlab.token`) or via `X-GitLab-Token` header
+- Body token takes precedence when both are provided
+- Handled in-memory only regardless of transport
 - Never logged (redacted by Pino)
 - Supports project, group, or personal access tokens with API scope
 

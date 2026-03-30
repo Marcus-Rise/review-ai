@@ -31,4 +31,5 @@ export interface ReviewPacket {
   };
   review_profile: string;
   user_focus?: string;
+  warnings?: string[];
 }

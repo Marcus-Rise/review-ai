@@ -120,6 +120,26 @@ describe('AuthGuard', () => {
     expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
   });
 
+  it('should reject when only x-request-timestamp is present (partial HMAC)', () => {
+    (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
+    const ctx = createMockContext({
+      authorization: 'Bearer test-key-123',
+      'x-client-id': 'test-client',
+      'x-request-timestamp': '1000',
+    });
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+  });
+
+  it('should reject when only x-request-signature is present (partial HMAC)', () => {
+    (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
+    const ctx = createMockContext({
+      authorization: 'Bearer test-key-123',
+      'x-client-id': 'test-client',
+      'x-request-signature': 'some-signature',
+    });
+    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+  });
+
   it('should accept a correctly signed request (contract: HMAC-SHA256(body + timestamp, secret))', () => {
     (clientsConfig.getClient as jest.Mock).mockReturnValue(mockClient);
 
