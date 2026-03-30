@@ -1,0 +1,336 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Amvera Inference API",
+    "description": "API для взаимодействия с языковыми моделями.\n\nАвторизация: Для выполнения запросов необходимо передавать токен Bearer в заголовке X-Auth-Token.\nКак получить токен для публичного API — см. документацию.\n",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://kong-proxy.yc.amvera.ru/api/v1",
+      "description": "Amvera Public API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "LLaMA",
+      "description": "⚠️ Устаревший (deprecated). Используйте GPT-модели вместо LLaMA."
+    },
+    {
+      "name": "GPT",
+      "description": "Операции для взаимодействия с моделями GPT от OpenAI."
+    }
+  ],
+  "paths": {
+    "/models/llama": {
+      "post": {
+        "tags": ["LLaMA"],
+        "summary": "Запрос к языковым моделям",
+        "deprecated": true,
+        "description": "⚠️ Этот метод помечен как **устаревший** и будет видоизменен в будущих обновлениях API.\nРекомендуется использовать эндпоинт `/models/gpt`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["model", "messages"],
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "enum": ["llama8b", "llama70b"],
+                    "description": "Имя модели, используемой для генерации ответа (llama8b или llama70b)."
+                  },
+                  "messages": {
+                    "type": "array",
+                    "description": "Контекст запроса — список сообщений, переданных модели.",
+                    "items": {
+                      "type": "object",
+                      "required": ["role"],
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": ["system", "user"],
+                          "description": "system — определяет поведение модели; user — запрос пользователя."
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "Текстовое содержание сообщения."
+                        },
+                        "toolCallList": {
+                          "type": "object",
+                          "properties": {
+                            "toolCalls": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "functionCall": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": { "type": "string" },
+                                      "arguments": { "type": "object" }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "toolResultList": {
+                          "type": "object",
+                          "properties": {
+                            "toolResults": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "functionResult": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": { "type": "string" },
+                                      "content": { "type": "string" }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "tools": {
+                    "type": "array",
+                    "description": "Список инструментов (не поддерживается).",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "function": {
+                          "type": "object",
+                          "properties": {
+                            "name": { "type": "string" },
+                            "description": { "type": "string" },
+                            "parameters": { "type": "object" }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "jsonObject": {
+                    "type": "boolean"
+                  },
+                  "jsonSchema": {
+                    "type": "object",
+                    "properties": {
+                      "schema": { "type": "object" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Успешный ответ от модели",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "alternatives": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "object",
+                            "properties": {
+                              "role": { "type": "string" },
+                              "text": { "type": "string" },
+                              "toolCallList": {
+                                "type": "object",
+                                "properties": {
+                                  "toolCalls": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "functionCall": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": { "type": "string" },
+                                            "arguments": { "type": "object" }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "status": { "type": "string" }
+                        }
+                      }
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "inputTextTokens": { "type": "string" },
+                        "completionTokens": { "type": "string" },
+                        "totalTokens": { "type": "string" },
+                        "completionTokensDetails": {
+                          "type": "object",
+                          "properties": {
+                            "reasoningTokens": { "type": "string" }
+                          }
+                        }
+                      }
+                    },
+                    "modelVersion": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Неверный запрос" },
+          "401": { "description": "Не авторизованы" },
+          "402": { "description": "Нет доступа к платной операции" },
+          "403": { "description": "Операция запрещена" },
+          "500": { "description": "Внутренняя ошибка сервера" }
+        }
+      }
+    },
+    "/models/gpt": {
+      "post": {
+        "tags": ["GPT"],
+        "summary": "Запрос к языковым моделям",
+        "description": "Создаёт ответ от выбранной модели (аналог OpenAI Chat Completions), без поддержки стриминга, аудио и видео.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["model", "messages"],
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "description": "ID модели (например, gpt-4o, o3)."
+                  },
+                  "messages": {
+                    "type": "array",
+                    "description": "История диалога.",
+                    "items": {
+                      "type": "object",
+                      "required": ["role", "text"],
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": ["system", "user", "assistant"]
+                        },
+                        "text": { "type": "string" }
+                      }
+                    }
+                  },
+                  "frequency_penalty": { "type": "number" },
+                  "function_call": { "type": "object", "deprecated": true },
+                  "functions": { "type": "array", "deprecated": true, "items": { "type": "object" } },
+                  "logit_bias": { "type": "object" },
+                  "logprobs": { "type": "boolean" },
+                  "max_completion_tokens": { "type": "integer" },
+                  "metadata": { "type": "object" },
+                  "modalities": {
+                    "type": "array",
+                    "description": "Поддерживаются только ['text']",
+                    "items": { "type": "string" }
+                  },
+                  "n": { "type": "integer" },
+                  "parallel_tool_calls": { "type": "boolean" },
+                  "prediction": { "type": "object" },
+                  "presence_penalty": { "type": "number" },
+                  "prompt_cache_key": { "type": "string" },
+                  "reasoning_effort": {
+                    "type": "string",
+                    "enum": ["minimal", "low", "medium", "high"]
+                  },
+                  "safety_identifier": { "type": "string" },
+                  "seed": { "type": "integer", "deprecated": true },
+                  "service_tier": {
+                    "type": "string",
+                    "enum": ["auto", "default", "flex"]
+                  },
+                  "stop": { "type": "string" },
+                  "store": { "type": "boolean" },
+                  "temperature": { "type": "number" },
+                  "tool_choice": { "type": "object" },
+                  "tools": {
+                    "type": "array",
+                    "items": { "type": "object" }
+                  },
+                  "top_logprobs": { "type": "integer" },
+                  "top_p": { "type": "number" },
+                  "user": { "type": "string", "deprecated": true },
+                  "verbosity": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "object": { "type": "string", "example": "chat.completion" },
+                    "created": { "type": "integer" },
+                    "model": { "type": "string" },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": { "type": "integer" },
+                          "message": {
+                            "type": "object",
+                            "properties": {
+                              "role": { "type": "string" },
+                              "text": { "type": "string" }
+                            }
+                          },
+                          "finish_reason": { "type": "string" }
+                        }
+                      }
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "prompt_tokens": { "type": "integer" },
+                        "completion_tokens": { "type": "integer" },
+                        "total_tokens": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Неверный запрос" },
+          "401": { "description": "Не авторизованы" },
+          "402": { "description": "Нет доступа к платной операции" },
+          "403": { "description": "Операция запрещена" },
+          "500": { "description": "Внутренняя ошибка сервера" }
+        }
+      }
+    }
+  }
+}
