@@ -272,12 +272,54 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
 
 ## GitLab CI Integration
 
-See [.gitlab-ci.yml.example](.gitlab-ci.yml.example) for a ready-to-use manual job.
+The recommended way to integrate review-ai into GitLab projects is via the reusable CI template.
 
-Required CI/CD secret variables:
-- `AI_REVIEW_SERVICE_URL`
-- `AI_REVIEW_API_KEY`
-- `AI_REVIEW_CLIENT_ID`
+### Quick setup
+
+1. Add CI/CD secret variables to the client project (masked, protected):
+   - `AI_REVIEW_SERVICE_URL` — URL of the review-ai service
+   - `AI_REVIEW_API_KEY` — Bearer token matching `clients.json` on the service
+   - `AI_REVIEW_CLIENT_ID` — Client ID matching `clients.json` on the service
+
+2. Include the template in the client project's `.gitlab-ci.yml`:
+
+```yaml
+include:
+  - project: 'infra/review-ai'   # adjust to your GitLab project path
+    ref: main                      # pin to a tag for stability
+    file: '/templates/review-ai.yml'
+
+stages:
+  - review
+```
+
+This adds a manual `ai-review` job to every MR pipeline.
+
+### Auto-trigger
+
+To run review automatically on every MR push, override the job:
+
+```yaml
+ai-review:
+  extends: .ai-review-auto
+```
+
+### Customization
+
+Override variables in CI/CD settings or in `.gitlab-ci.yml`:
+
+```yaml
+ai-review:
+  variables:
+    REVIEW_PROFILE: "security"          # default | security | thorough
+    REVIEW_USER_FOCUS: "Focus on auth"  # optional hint for the model
+```
+
+### Standalone (no include)
+
+If your project cannot use `include:project`, see [.gitlab-ci.yml.example](.gitlab-ci.yml.example) for a self-contained inline job.
+
+See [templates/review-ai.yml](templates/review-ai.yml) for the full template source.
 
 ## Security
 
