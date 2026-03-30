@@ -133,25 +133,42 @@ docker run -d \
 
 Limits are applied automatically by `ContextBuilderService` based on `MODEL_PROVIDER`.
 
-### Ollama Hardware Requirements
+### Ollama Models — CPU Only (no GPU)
 
-Ollama runs models locally. Minimum requirements depend on model size:
+Most affordable setup: any modern x86 machine with enough RAM. All models run on CPU via Ollama, but speed varies significantly with model size.
 
-| Model | Parameters | RAM (CPU) | VRAM (GPU) | Notes |
-|-------|:----------:|:---------:|:----------:|-------|
-| `qwen2.5-coder:1.5b` | 1.5B | 4 GB | 2 GB | Fastest, basic quality |
-| `qwen2.5-coder:7b` | 7B | 8 GB | 6 GB | Good balance for code review |
-| `qwen2.5-coder:14b` | 14B | 16 GB | 10 GB | Higher quality findings |
-| `qwen2.5-coder:32b` | 32B | 32 GB | 24 GB | Best quality, slow on CPU |
-| `codellama:13b` | 13B | 16 GB | 10 GB | Meta's code-focused model |
-| `deepseek-coder-v2:16b` | 16B | 16 GB | 12 GB | Strong at code reasoning |
+| Model | Parameters | RAM needed | Speed (CPU) | Review quality | Best for |
+|-------|:----------:|:----------:|:-----------:|:--------------:|----------|
+| `qwen2.5-coder:1.5b` | 1.5B | 4 GB | ~5 tok/s, ~30s/review | Low | Testing, CI smoke tests |
+| `qwen2.5-coder:7b` | 7B | 8 GB | ~2 tok/s, ~2 min/review | Medium | **Recommended for CPU** |
+| `codellama:7b` | 7B | 8 GB | ~2 tok/s, ~2 min/review | Medium | Alternative to Qwen 7B |
+| `qwen2.5-coder:14b` | 14B | 16 GB | ~1 tok/s, ~5 min/review | Good | Dedicated review server |
+| `deepseek-coder-v2:16b` | 16B | 20 GB | ~0.8 tok/s, ~7 min/review | Good | Strong reasoning on CPU |
+| `qwen2.5-coder:32b` | 32B | 36 GB | ~0.4 tok/s, ~15 min/review | High | Not practical on CPU |
+| `codellama:34b` | 34B | 38 GB | ~0.3 tok/s, ~18 min/review | High | Not practical on CPU |
 
-**GPU vs CPU:**
-- **With GPU (NVIDIA):** Models run 5–20x faster. Recommended for 7B+ models. Requires `nvidia-container-toolkit` for Docker.
-- **CPU only:** Viable for 1.5B–7B models. 14B+ models will be very slow (minutes per review).
-- **Apple Silicon (M1/M2/M3):** Ollama uses Metal acceleration natively. 7B–14B models work well.
+> Speeds measured on a typical 8-core x86 CPU (Xeon/Ryzen). Actual performance varies with CPU generation, RAM speed, and diff size.
 
-**Recommendation:** Start with `qwen2.5-coder:7b` (best quality/speed ratio). Use `1.5b` for testing, `14b+` if you have a GPU.
+**CPU-only recommendations:**
+- **4 GB RAM** → `qwen2.5-coder:1.5b` (fast but basic findings)
+- **8 GB RAM** → `qwen2.5-coder:7b` (best quality/speed trade-off)
+- **16+ GB RAM** → `qwen2.5-coder:14b` (if you can tolerate ~5 min reviews)
+- **32B+ models** → not practical on CPU, use GPU or switch to Amvera
+
+### Ollama Models — With GPU
+
+GPU accelerates inference 5–20x. Requires `nvidia-container-toolkit` for Docker.
+
+| Model | Parameters | VRAM needed | Speed (GPU) | Review quality |
+|-------|:----------:|:-----------:|:-----------:|:--------------:|
+| `qwen2.5-coder:1.5b` | 1.5B | 2 GB | ~60 tok/s, ~3s/review | Low |
+| `qwen2.5-coder:7b` | 7B | 6 GB | ~30 tok/s, ~8s/review | Medium |
+| `qwen2.5-coder:14b` | 14B | 10 GB | ~15 tok/s, ~15s/review | Good |
+| `qwen2.5-coder:32b` | 32B | 24 GB | ~8 tok/s, ~30s/review | High |
+| `deepseek-coder-v2:16b` | 16B | 12 GB | ~12 tok/s, ~18s/review | Good |
+| `codellama:34b` | 34B | 24 GB | ~7 tok/s, ~35s/review | High |
+
+**Apple Silicon (M1/M2/M3/M4):** Ollama uses Metal acceleration natively. 7B–14B models work well. Performance is between CPU and discrete GPU.
 
 ### Amvera Supported Models
 
