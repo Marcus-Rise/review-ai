@@ -30,25 +30,39 @@ Edit `secrets/clients.json` — set your own `api_key` and `client_secret`:
 }
 ```
 
-### 2. Start services
+### 2. Choose model provider
+
+**Amvera (default, cloud-hosted):**
+
+```bash
+# Add your Amvera API key
+echo "your-amvera-token" > secrets/model-api-key.txt
+# docker-compose.yml already has MODEL_PROVIDER=amvera and MODEL_NAME=gpt-5
+```
+
+**Ollama (self-hosted, requires local GPU or sufficient RAM):**
+
+In `docker-compose.yml`, set:
+```yaml
+MODEL_PROVIDER: openai
+MODEL_ENDPOINT: http://model:11434
+MODEL_NAME: qwen2.5-coder:1.5b
+```
+
+### 3. Start services
 
 ```bash
 docker compose up -d
 ```
 
-Wait for Ollama to become healthy, then pull a model:
+If using Ollama, pull the model after startup:
 
 ```bash
-# Default (~4GB, needs ~8GB RAM)
-docker exec ai-review-model ollama pull qwen2.5-coder:7b
-
-# Lightweight alternative (~1GB, needs ~4GB RAM)
+# Lightweight (~1GB, needs ~4GB RAM)
 docker exec ai-review-model ollama pull qwen2.5-coder:1.5b
 ```
 
-> If using a non-default model, update `MODEL_NAME` in `docker-compose.yml`.
-
-### 3. Verify
+### 4. Verify
 
 ```bash
 curl http://localhost:3000/healthz
@@ -58,7 +72,7 @@ curl http://localhost:3000/readyz
 # {"status":"ok","checks":{...}}
 ```
 
-### 4. Create a GitLab access token
+### 5. Create a GitLab access token
 
 In your GitLab instance:
 
@@ -68,7 +82,7 @@ In your GitLab instance:
    - **Scopes:** `api`
 3. Copy the token (starts with `glpat-...`)
 
-### 5. Run a dry-run review
+### 6. Run a dry-run review
 
 Replace the values with your own:
 
@@ -97,7 +111,7 @@ curl -s http://localhost:3000/api/v1/reviews/run \
 >
 > **Tip:** You can pass the GitLab token via `X-GitLab-Token` header instead of `gitlab.token` in the body.
 
-### 6. Run a real review
+### 7. Run a real review
 
 Once you're happy with the dry-run output, switch to `dry_run: false`:
 
@@ -126,7 +140,7 @@ Check your MR in GitLab — you should see inline review comments.
 
 ---
 
-## Option B: Local development (no Docker)
+## Option B: Local development with Ollama (no Docker)
 
 ### 1. Install and configure
 
@@ -139,8 +153,9 @@ cp secrets/clients.example.json secrets/clients.json
 Edit `.env`:
 
 ```env
+MODEL_PROVIDER=openai
 MODEL_ENDPOINT=http://localhost:11434
-MODEL_NAME=qwen2.5-coder:7b
+MODEL_NAME=qwen2.5-coder:1.5b
 CLIENTS_CONFIG_PATH=./secrets/clients.json
 ```
 
@@ -151,7 +166,7 @@ Edit `secrets/clients.json` as shown above.
 ```bash
 # Install Ollama: https://ollama.com/download
 ollama serve
-ollama pull qwen2.5-coder:7b
+ollama pull qwen2.5-coder:1.5b
 ```
 
 ### 3. Start the service
@@ -256,8 +271,8 @@ The service caches responses by this key (in-memory, 5 min TTL).
 | `401 Unauthorized` | Check `Authorization` header and `X-Client-Id` match `secrets/clients.json` |
 | `429 Too Many Requests` | Rate limit hit — wait or increase `rate_limit.requests` in client config |
 | `MODEL_ENDPOINT and MODEL_NAME must be configured` | Set env vars or check `.env` |
-| Model returns empty findings | Model may be too small — try a larger model (7b+) |
-| `Connection refused` on model | Ensure Ollama is running and accessible from the service container |
+| Model returns empty findings | Model may be too small — try a larger model |
+| `Connection refused` on model | Ensure model service is running and accessible (Ollama: check `ollama serve`; Amvera: check API key and network) |
 | Suggestions not appearing | Only created when the fix is local, small, and safe — not for broad issues |
 | `status: "partial"` in response | Some discussions failed to publish — check `errors` array for details |
 | `warnings` mentions truncation | MR is large; some files/diffs were bounded to fit the model context |

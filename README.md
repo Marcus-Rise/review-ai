@@ -6,7 +6,7 @@ Triggered by a manual GitLab CI job, the service:
 
 1. Authenticates the incoming request
 2. Fetches merge request context from GitLab API
-3. Calls a self-hosted coding model (OpenAI-compatible)
+3. Calls a coding model via OpenAI-compatible API (self-hosted Ollama or cloud provider)
 4. Decides what review output is appropriate
 5. Publishes review results back to GitLab as inline discussions, suggestions, or replies
 
@@ -29,7 +29,7 @@ See [docs/architecture.md](docs/architecture.md) for details.
 - Node.js 22 LTS
 - pnpm
 - Docker & Docker Compose (for deployment)
-- Self-hosted model with OpenAI-compatible API (e.g., Ollama)
+- Model provider: self-hosted (e.g., Ollama) **or** cloud (e.g., Amvera)
 - GitLab access token with API scope
 
 ## Quick Start (Local Development)
@@ -58,30 +58,37 @@ The service will be available at `http://localhost:3000`.
 
 ## Docker Compose (Service + Model)
 
-Run both the AI review service and Ollama model with one command:
+Two provider modes are supported — choose one:
+
+### Option A: Amvera (cloud, default in `docker-compose.yml`)
 
 ```bash
-# Copy and edit secrets
 cp secrets/clients.example.json secrets/clients.json
 # Edit secrets/clients.json — set real api_key and client_secret
 
-# Start everything
+# Add your Amvera API key
+echo "your-amvera-token" > secrets/model-api-key.txt
+
+# Set MODEL_PROVIDER=amvera and MODEL_NAME in docker-compose.yml (already default)
+docker compose up -d
+
+curl http://localhost:3000/healthz
+```
+
+Supported Amvera models: `gpt-5`, `gpt-4.1`, `deepseek-R1`, `deepseek-V3`, `qwen3_30b`, `qwen3_235b`.
+
+### Option B: Ollama (self-hosted)
+
+```bash
+cp secrets/clients.example.json secrets/clients.json
+# In docker-compose.yml: set MODEL_PROVIDER=openai, MODEL_ENDPOINT=http://model:11434, MODEL_NAME=qwen2.5-coder:1.5b
+
 docker compose up -d
 
 # Pull the model (first time only)
-docker exec ai-review-model ollama pull qwen2.5-coder:7b
+docker exec ai-review-model ollama pull qwen2.5-coder:1.5b
 
-# Check health
 curl http://localhost:3000/healthz
-curl http://localhost:3000/readyz
-```
-
-### Changing the model
-
-Edit `MODEL_NAME` in `docker-compose.yml` and pull the new model:
-
-```bash
-docker exec ai-review-model ollama pull <model-name>
 ```
 
 ## Docker (Service Only)
@@ -89,10 +96,23 @@ docker exec ai-review-model ollama pull <model-name>
 ```bash
 docker build -t ai-review-service .
 
+# With Amvera provider
 docker run -d \
   -p 3000:3000 \
+  -e MODEL_PROVIDER=amvera \
+  -e MODEL_NAME=gpt-5 \
+  -e MODEL_API_KEY_PATH=/run/secrets/model-api-key.txt \
+  -e CLIENTS_CONFIG_PATH=/run/secrets/clients.json \
+  -v /path/to/clients.json:/run/secrets/clients.json:ro \
+  -v /path/to/model-api-key.txt:/run/secrets/model-api-key.txt:ro \
+  ai-review-service
+
+# With Ollama (self-hosted)
+docker run -d \
+  -p 3000:3000 \
+  -e MODEL_PROVIDER=openai \
   -e MODEL_ENDPOINT=http://your-model-host:11434 \
-  -e MODEL_NAME=qwen2.5-coder:7b \
+  -e MODEL_NAME=qwen2.5-coder:1.5b \
   -e CLIENTS_CONFIG_PATH=/run/secrets/clients.json \
   -v /path/to/clients.json:/run/secrets/clients.json:ro \
   ai-review-service
@@ -109,8 +129,10 @@ docker run -d \
 | `LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
 | `SWAGGER_ENABLED` | `true` | Enable Swagger UI |
 | `CLIENTS_CONFIG_PATH` | — | Path to client auth JSON file |
-| `MODEL_ENDPOINT` | — | Model API base URL (OpenAI-compatible) |
+| `MODEL_PROVIDER` | `openai` | Provider: `openai` (Ollama/OpenAI-compatible) or `amvera` |
+| `MODEL_ENDPOINT` | — | Model API base URL (auto-derived for known providers) |
 | `MODEL_NAME` | — | Model name to use |
+| `MODEL_API_KEY_PATH` | — | Path to file containing model API key (required for Amvera) |
 | `MODEL_TIMEOUT_MS` | `120000` | Model call timeout in ms |
 | `REQUEST_BODY_LIMIT` | `1048576` | Max request body size in bytes (1MB) |
 | `REQUEST_TIMEOUT_MS` | `300000` | Global request timeout in ms (5min) |

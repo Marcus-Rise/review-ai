@@ -34,7 +34,8 @@ Every request gets a UUID (`X-Request-Id` header). The ID is included in logs an
 
 ```bash
 docker compose up -d
-docker exec ai-review-model ollama pull qwen2.5-coder:7b
+# If using Ollama provider (MODEL_PROVIDER=openai with local model):
+docker exec ai-review-model ollama pull qwen2.5-coder:1.5b
 ```
 
 ### Secret Rotation

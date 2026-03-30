@@ -130,6 +130,6 @@ The service automatically bounds the review context sent to the model:
 
 - Binary and generated files are filtered out (`.min.js`, `.lock`, `.map`, image formats, etc.)
 - Files under `vendor/`, `node_modules/`, `dist/`, `.yarn/` are excluded
-- Maximum **50 files** per review; excess files are dropped with a warning
-- Individual diffs truncated at **10,000 chars**; total diff capped at **100,000 chars**
+- Maximum **20 files** per review; excess files are dropped with a warning
+- Individual diffs truncated at **4,000 chars**; total diff capped at **12,000 chars**
 - Truncation warnings are included in the response `warnings` array
