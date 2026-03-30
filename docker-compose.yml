@@ -29,13 +29,13 @@ services:
       PORT: "3000"
       LOG_LEVEL: info
       SWAGGER_ENABLED: "true"
-      CLIENTS_CONFIG_PATH: /run/secrets/clients.json
+      CLIENTS_CONFIG_PATH: /run/secrets/clients-config
       MODEL_PROVIDER: openai
       MODEL_ENDPOINT: http://model:11434
       MODEL_NAME: qwen2.5-coder:7b
       MODEL_TIMEOUT_MS: "120000"
-    volumes:
-      - ./secrets/clients.json:/run/secrets/clients.json:ro
+    secrets:
+      - clients-config
     depends_on:
       model:
         condition: service_healthy
@@ -49,6 +49,10 @@ services:
     tmpfs:
       - /tmp
     restart: unless-stopped
+
+secrets:
+  clients-config:
+    file: ./secrets/clients.json
 
 volumes:
   ollama_data:
