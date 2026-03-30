@@ -5,6 +5,7 @@ import { AppModule } from '../../src/app.module';
 import { ClientsConfigService } from '../../src/auth/clients-config.service';
 import { GitLabService } from '../../src/gitlab/gitlab.service';
 import { ModelService } from '../../src/model/model.service';
+import { MODEL_PROVIDER } from '../../src/model/providers/model-provider.interface';
 import { RequestIdInterceptor } from '../../src/common/request-id.interceptor';
 import { GlobalExceptionFilter } from '../../src/common/http-exception.filter';
 
@@ -110,6 +111,8 @@ describe('Review Flow Integration', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(MODEL_PROVIDER)
+      .useValue({ complete: jest.fn() })
       .overrideProvider(ClientsConfigService)
       .useValue({
         getClient: jest.fn().mockReturnValue(mockClient),

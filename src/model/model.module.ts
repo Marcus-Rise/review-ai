@@ -36,6 +36,12 @@ const logger = new Logger('ModelModule');
             return new AmveraProvider(config, apiKey);
           case 'openai':
           default:
+            if (!config.get('MODEL_ENDPOINT') && !apiKey) {
+              throw new Error(
+                'MODEL_API_KEY_PATH is required when using the default OpenAI endpoint (api.openai.com). ' +
+                  'Set MODEL_ENDPOINT for self-hosted models like Ollama.',
+              );
+            }
             return new OpenAiProvider(config, apiKey);
         }
       },
