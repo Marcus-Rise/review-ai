@@ -10,7 +10,7 @@ End-to-end guide: from zero to your first AI review on a real GitLab MR.
 cp secrets/clients.example.json secrets/clients.json
 ```
 
-Edit `secrets/clients.json` — set your own `api_key` and `client_secret`:
+Edit `secrets/clients.json` — set your own `api_key`, `client_secret`, and `gitlab_token`:
 
 ```json
 {
@@ -19,6 +19,7 @@ Edit `secrets/clients.json` — set your own `api_key` and `client_secret`:
       "client_id": "gitlab-review-job",
       "api_key": "my-test-key-123",
       "client_secret": "my-test-secret-456",
+      "gitlab_token": "glpat-xxxxxxxxxxxx",
       "enabled": true,
       "allowed_endpoints": ["/api/v1/reviews/run"],
       "rate_limit": {
@@ -89,8 +90,7 @@ curl -s http://localhost:3000/api/v1/reviews/run \
     "gitlab": {
       "base_url": "https://your-gitlab.example.com",
       "project_path": "your-group/your-project",
-      "mr_iid": 42,
-      "token": "glpat-xxxxxxxxxxxx"
+      "mr_iid": 42
     },
     "review": {
       "mode": "mr",
@@ -102,7 +102,7 @@ curl -s http://localhost:3000/api/v1/reviews/run \
 
 > **Start with `dry_run: true`** — the service will show what it _would_ post to GitLab without actually creating any discussions.
 >
-> **Tip:** You can pass the GitLab token via `X-GitLab-Token` header instead of `gitlab.token` in the body.
+> **Note:** The GitLab token is configured per client in `clients.json` — it is not passed in the request.
 
 ### 7. Run a real review
 
@@ -118,8 +118,7 @@ curl -s http://localhost:3000/api/v1/reviews/run \
     "gitlab": {
       "base_url": "https://your-gitlab.example.com",
       "project_path": "your-group/your-project",
-      "mr_iid": 42,
-      "token": "glpat-xxxxxxxxxxxx"
+      "mr_iid": 42
     },
     "review": {
       "mode": "mr",

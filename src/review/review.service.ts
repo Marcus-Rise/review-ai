@@ -46,13 +46,6 @@ export class ReviewService {
       throw new BadRequestException('Either project_path or project_id is required');
     }
 
-    // Validate GitLab token
-    if (!dto.gitlab.token) {
-      throw new BadRequestException(
-        'GitLab token is required (provide in body or X-GitLab-Token header)',
-      );
-    }
-
     // Rate limit check
     const projectPath = dto.gitlab.project_path || String(dto.gitlab.project_id);
     const rateLimit = this.rateLimitService.checkLimit(
@@ -75,7 +68,7 @@ export class ReviewService {
       project_path: dto.gitlab.project_path,
       project_id: dto.gitlab.project_id,
       mr_iid: dto.gitlab.mr_iid,
-      token: dto.gitlab.token,
+      token: client.gitlab_token,
       base_sha: dto.gitlab.base_sha,
       head_sha: dto.gitlab.head_sha,
     };

@@ -23,7 +23,6 @@ Log levels: `debug`, `info`, `warn`, `error` (set via `LOG_LEVEL` env).
 ### Redacted fields
 - `Authorization` header
 - `X-Request-Signature` header
-- `gitlab.token` in request body
 
 ### Correlation
 Every request gets a UUID (`X-Request-Id` header). The ID is included in logs and responses.

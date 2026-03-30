@@ -7,6 +7,7 @@ export interface ClientConfig {
   client_id: string;
   api_key: string;
   client_secret: string;
+  gitlab_token: string;
   enabled: boolean;
   allowed_endpoints: string[];
   rate_limit: ClientRateLimit;

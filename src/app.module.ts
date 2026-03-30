@@ -27,11 +27,7 @@ import { envValidation } from './config/env.validation';
               ? { target: 'pino-pretty', options: { colorize: true } }
               : undefined,
           redact: {
-            paths: [
-              'req.headers.authorization',
-              'req.headers["x-request-signature"]',
-              'req.body.gitlab.token',
-            ],
+            paths: ['req.headers.authorization', 'req.headers["x-request-signature"]'],
             censor: '[REDACTED]',
           },
         },

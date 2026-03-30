@@ -9,7 +9,6 @@ Primary MVP endpoint. Runs AI review on a GitLab merge request.
 **Headers:**
 - `Authorization: Bearer <api_key>` (required)
 - `X-Client-Id: <client_id>` (required)
-- `X-GitLab-Token: <gitlab_access_token>` (optional, alternative to `gitlab.token` in body)
 - `X-Request-Timestamp: <unix_timestamp>` (optional, for HMAC — must be paired with signature)
 - `X-Request-Signature: <hmac_sha256>` (optional, for HMAC — must be paired with timestamp)
 - `Idempotency-Key: <unique_key>` (optional)
@@ -22,7 +21,6 @@ Primary MVP endpoint. Runs AI review on a GitLab merge request.
     "base_url": "https://gitlab.example.com",
     "project_path": "group/project",
     "mr_iid": 123,
-    "token": "glpat-...",
     "base_sha": "optional",
     "head_sha": "optional"
   },
@@ -110,7 +108,7 @@ Swagger / OpenAPI documentation (when `SWAGGER_ENABLED=true`).
 - `api_version` must be `"v1"`
 - `gitlab.base_url` is required
 - `gitlab.mr_iid` is required
-- `gitlab.token` is required (in body or via `X-GitLab-Token` header)
+- GitLab token is configured per client in `clients.json` (not passed in the request)
 - Either `gitlab.project_path` or `gitlab.project_id` must be provided
 - `review.mode` must be `"mr"`
 - `review.profile` must be `"default"`, `"security"`, or `"thorough"`

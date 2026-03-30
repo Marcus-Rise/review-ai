@@ -20,7 +20,7 @@ ai-review:
     # AI_REVIEW_SERVICE_URL: https://your-review-service:3000
     # AI_REVIEW_API_KEY: <from CI/CD secrets>
     # AI_REVIEW_CLIENT_ID: gitlab-review-job
-    # GITLAB_REVIEW_TOKEN: <project/group access token with api scope>
+    # Note: GitLab token is configured per client in clients.json on the service side
   script:
     - |
       echo "Running AI review for MR !${CI_MERGE_REQUEST_IID}..."
@@ -34,8 +34,7 @@ ai-review:
           \"gitlab\": {
             \"base_url\": \"${CI_SERVER_URL}\",
             \"project_path\": \"${CI_PROJECT_PATH}\",
-            \"mr_iid\": ${CI_MERGE_REQUEST_IID},
-            \"token\": \"${GITLAB_REVIEW_TOKEN}\"
+            \"mr_iid\": ${CI_MERGE_REQUEST_IID}
           },
           \"review\": {
             \"mode\": \"${REVIEW_MODE}\",

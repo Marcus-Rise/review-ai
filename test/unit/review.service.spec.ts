@@ -13,6 +13,7 @@ const mockClient: ClientConfig = {
   client_id: 'c1',
   api_key: 'key',
   client_secret: 'secret',
+  gitlab_token: 'glpat-test',
   enabled: true,
   allowed_endpoints: [],
   rate_limit: { requests: 10, per_seconds: 60 },
@@ -26,7 +27,6 @@ function makeDto(
     gitlab: {
       base_url: 'https://gitlab.example.com',
       mr_iid: 1,
-      token: 'token',
       ...overrides,
     },
     review: {
@@ -97,14 +97,6 @@ describe('ReviewService', () => {
     await svc.runReview(dto, 'req-1', mockClient);
 
     expect(rateLimitService.checkLimit).toHaveBeenCalledTimes(1);
-  });
-
-  it('should throw BadRequestException when no GitLab token is provided', async () => {
-    const dto = makeDto({ project_path: 'group/project' });
-    dto.gitlab.token = '';
-
-    await expect(service.runReview(dto, 'req-1', mockClient)).rejects.toThrow(BadRequestException);
-    await expect(service.runReview(dto, 'req-1', mockClient)).rejects.toThrow(/token/i);
   });
 
   it('should report partial failures with status "partial" and errors array', async () => {

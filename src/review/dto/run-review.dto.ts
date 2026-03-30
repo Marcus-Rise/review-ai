@@ -31,13 +31,6 @@ export class GitLabDto {
   @IsNumber()
   mr_iid!: number;
 
-  @ApiPropertyOptional({
-    description: 'GitLab access token (alternatively use X-GitLab-Token header)',
-  })
-  @IsString()
-  @IsOptional()
-  token?: string;
-
   @ApiPropertyOptional({ description: 'Base SHA override' })
   @IsString()
   @IsOptional()

@@ -29,11 +29,6 @@ export class ReviewController {
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Client-Id', required: true })
   @ApiHeader({ name: 'Idempotency-Key', required: false })
-  @ApiHeader({
-    name: 'X-GitLab-Token',
-    required: false,
-    description: 'Alternative GitLab token transport',
-  })
   @ApiOperation({ summary: 'Run AI code review on a GitLab merge request' })
   @ApiResponse({ status: 200, description: 'Review completed', type: ReviewResponseDto })
   @ApiResponse({ status: 400, description: 'Bad request' })
@@ -43,13 +38,7 @@ export class ReviewController {
     @Body() dto: RunReviewDto,
     @Req() req: FastifyRequest,
     @Headers('idempotency-key') idempotencyKey?: string,
-    @Headers('x-gitlab-token') gitlabTokenHeader?: string,
   ): Promise<ReviewResponseDto> {
-    // Merge: body token takes precedence over header
-    if (!dto.gitlab.token && gitlabTokenHeader) {
-      dto.gitlab.token = gitlabTokenHeader;
-    }
-
     const requestId = (req as unknown as Record<string, unknown>)['requestId'] as string;
     const client = (req as unknown as Record<string, unknown>)['client'] as ClientConfig;
 

@@ -30,7 +30,7 @@ See [docs/architecture.md](docs/architecture.md) for details.
 - pnpm
 - Docker & Docker Compose (for deployment)
 - Model provider: self-hosted (e.g., Ollama) **or** cloud (e.g., Amvera)
-- GitLab access token with API scope
+- GitLab access token with API scope (configured per client in `clients.json`)
 
 ## Quick Start (Local Development)
 
@@ -213,6 +213,7 @@ Loaded from `CLIENTS_CONFIG_PATH` (JSON file):
       "client_id": "gitlab-review-job",
       "api_key": "<secure random key>",
       "client_secret": "<secure random secret>",
+      "gitlab_token": "<gitlab access token with api scope>",
       "enabled": true,
       "allowed_endpoints": ["/api/v1/reviews/run"],
       "rate_limit": { "requests": 1, "per_seconds": 60 }
@@ -235,8 +236,7 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
     "gitlab": {
       "base_url": "https://gitlab.example.com",
       "project_path": "group/project",
-      "mr_iid": 123,
-      "token": "<gitlab_access_token>"
+      "mr_iid": 123
     },
     "review": {
       "mode": "mr",
@@ -247,16 +247,7 @@ curl -X POST http://localhost:3000/api/v1/reviews/run \
   }'
 ```
 
-The GitLab token can also be passed via header instead of the body:
-
-```bash
-curl -X POST http://localhost:3000/api/v1/reviews/run \
-  -H "Authorization: Bearer <api_key>" \
-  -H "X-Client-Id: gitlab-review-job" \
-  -H "X-GitLab-Token: glpat-xxxxxxxxxxxx" \
-  -H "Content-Type: application/json" \
-  -d '{ "api_version": "v1", "gitlab": { "base_url": "...", "project_path": "...", "mr_iid": 123 }, "review": { "mode": "mr" } }'
-```
+> **Note:** The GitLab token is configured per client in `clients.json` — it is not passed in the request.
 
 ### Response
 
@@ -287,14 +278,13 @@ Required CI/CD secret variables:
 - `AI_REVIEW_SERVICE_URL`
 - `AI_REVIEW_API_KEY`
 - `AI_REVIEW_CLIENT_ID`
-- `GITLAB_REVIEW_TOKEN`
 
 ## Security
 
 - API key + client ID authentication
 - Optional HMAC-SHA256 request signing (both timestamp and signature headers required when using HMAC)
 - Per-client rate limits and endpoint allowlists
-- GitLab tokens handled in-memory only, never logged
+- GitLab tokens stored per client in config, handled in-memory only
 - User focus field sanitized against prompt injection
 - Non-root container, read-only filesystem
 
