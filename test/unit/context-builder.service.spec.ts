@@ -224,6 +224,49 @@ describe('ContextBuilderService', () => {
     );
   });
 
+  it('should enforce total diff byte limit for multi-byte content (amvera)', async () => {
+    const gitlabService = makeGitlabService('opened');
+    // Cyrillic 'а' is 2 bytes in UTF-8: 4000 chars = 8000 bytes
+    const cyrillicDiff = 'а'.repeat(4000);
+    const changes = Array.from({ length: 5 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: cyrillicDiff,
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(changes);
+    const service = new ContextBuilderService(gitlabService, limitsFor('amvera'));
+    const packet = await service.build(mockGitlab, 'default');
+    const totalBytes = packet.changes.reduce(
+      (sum, c) => sum + Buffer.byteLength(c.diff, 'utf-8'),
+      0,
+    );
+    expect(totalBytes).toBeLessThanOrEqual(PROVIDER_LIMITS.amvera.maxTotalDiffBytes!);
+    expect(packet.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining('byte limit')]),
+    );
+  });
+
+  it('should not apply byte limit for openai provider', async () => {
+    const gitlabService = makeGitlabService('opened');
+    const cyrillicDiff = 'а'.repeat(4000);
+    const changes = Array.from({ length: 5 }, (_, i) => ({
+      new_path: `file${i}.ts`,
+      old_path: `file${i}.ts`,
+      diff: cyrillicDiff,
+      new_file: false,
+      deleted_file: false,
+      renamed_file: false,
+    }));
+    (gitlabService.getMrChanges as jest.Mock).mockResolvedValue(changes);
+    const service = new ContextBuilderService(gitlabService, limitsFor('openai'));
+    const packet = await service.build(mockGitlab, 'default');
+    // OpenAI has no byte limit, all 5 files should be included (total chars = 20,000 < 100,000)
+    expect(packet.changes).toHaveLength(5);
+  });
+
   it('should fall back to openai limits for unknown provider', async () => {
     const gitlabService = makeGitlabService('opened');
     const manyChanges = Array.from({ length: 60 }, (_, i) => ({

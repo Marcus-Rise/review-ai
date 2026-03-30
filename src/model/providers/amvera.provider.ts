@@ -47,8 +47,8 @@ export class AmveraProvider implements ModelProvider {
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
-        { role: 'system', content: req.systemPrompt },
-        { role: 'user', content: req.userPrompt },
+        { role: 'system', text: req.systemPrompt },
+        { role: 'user', text: req.userPrompt },
       ],
     };
 
@@ -63,7 +63,8 @@ export class AmveraProvider implements ModelProvider {
     }
 
     const bodyStr = JSON.stringify(body);
-    this.logger.log(`POST ${url} model=${req.model} body=${bodyStr.length}b`);
+    const byteSize = Buffer.byteLength(bodyStr, 'utf-8');
+    this.logger.log(`POST ${url} model=${req.model} body=${bodyStr.length}ch/${byteSize}b`);
 
     const res = await fetch(url, {
       method: 'POST',
@@ -84,7 +85,7 @@ export class AmveraProvider implements ModelProvider {
     const json = await res.json();
 
     const message = json.choices?.[0]?.message;
-    const content = message?.content ?? message?.text ?? '';
+    const content = message?.text ?? message?.content ?? '';
 
     return {
       content,

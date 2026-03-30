@@ -93,6 +93,16 @@ Local models (Ollama) and direct OpenAI API are not affected by these restrictio
 
 ---
 
+### UTF-8 byte count vs character count
+
+**Problem:** `string.length` в JavaScript считает UTF-16 code units (символы), а Kong проверяет размер тела в UTF-8 байтах. Для кириллицы 1 символ = 2 байта UTF-8. Diff из 12 000 символов с кириллицей может превысить ~17KB лимит Kong.
+
+**Example:** 12 000 символов diff + ~1 500 символов промпта = 13 500 символов. Если 4 000+ символов — кириллица, UTF-8 размер: 13 500 + 4 000 = 17 500 байт → 400 от Kong.
+
+**Decision:** добавлен `maxTotalDiffBytes: 13_000` в лимиты Amvera. `ContextBuilderService` считает UTF-8 байты через `Buffer.byteLength()` параллельно с символами. Лог AmveraProvider выводит оба значения: `body=13474ch/17200b`.
+
+---
+
 ## Current behavior (as implemented)
 
 | Parameter | gpt-5 | gpt-4.1 | deepseek/qwen |
@@ -100,7 +110,7 @@ Local models (Ollama) and direct OpenAI API are not affected by these restrictio
 | `temperature` | ✗ | ✓ | ✓ |
 | `reasoning_effort: "low"` | ✓ | ✗ | ✗ |
 | `response_format` | when `jsonMode=true` | when `jsonMode=true` | when `jsonMode=true` |
-| messages field | `text` | `text` | `text` |
+| messages field | `text` (per spec) | `text` (per spec) | `text` (per spec) |
 
 ## Response parsing
 
