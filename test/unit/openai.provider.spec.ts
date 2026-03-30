@@ -16,17 +16,10 @@ describe('OpenAiProvider', () => {
     configService = {
       get: jest.fn((key: string, def?: unknown) => {
         const map: Record<string, unknown> = {
+          MODEL_ENDPOINT: 'http://localhost:11434',
           MODEL_TIMEOUT_MS: '5000',
         };
         return map[key] ?? def;
-      }),
-      getOrThrow: jest.fn((key: string) => {
-        const map: Record<string, string> = {
-          MODEL_ENDPOINT: 'http://localhost:11434',
-        };
-        const val = map[key];
-        if (!val) throw new Error(`Missing ${key}`);
-        return val;
       }),
     } as unknown as ConfigService;
   });
@@ -148,6 +141,26 @@ describe('OpenAiProvider', () => {
 
     const result = await provider.complete(baseRequest);
     expect(result.content).toBe('');
+  });
+
+  it('should use default endpoint when MODEL_ENDPOINT not set', async () => {
+    const noEndpointConfig = {
+      get: jest.fn((key: string, def?: unknown) => {
+        const map: Record<string, unknown> = { MODEL_TIMEOUT_MS: '5000' };
+        return map[key] ?? def;
+      }),
+    } as unknown as ConfigService;
+    const provider = new OpenAiProvider(noEndpointConfig);
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: '{}' } }] }),
+    });
+
+    await provider.complete(baseRequest);
+
+    const [url] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/chat/completions');
   });
 
   it('should send correct message format', async () => {

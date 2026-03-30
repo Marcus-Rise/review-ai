@@ -19,6 +19,8 @@ const MODEL_ENDPOINT_MAP: Record<string, string> = {
 
 const GPT_MODELS = new Set(['gpt-4.1', 'gpt-5']);
 
+const DEFAULT_ENDPOINT = 'https://kong-proxy.yc.amvera.ru/api/v1';
+
 export class AmveraProvider implements ModelProvider {
   private readonly logger = new Logger(AmveraProvider.name);
 
@@ -28,7 +30,7 @@ export class AmveraProvider implements ModelProvider {
   ) {}
 
   async complete(req: ModelProviderRequest): Promise<ModelProviderResponse> {
-    const baseUrl = this.config.getOrThrow<string>('MODEL_ENDPOINT');
+    const baseUrl = this.config.get<string>('MODEL_ENDPOINT') || DEFAULT_ENDPOINT;
     const timeoutMs = parseInt(this.config.get<string>('MODEL_TIMEOUT_MS', '120000'), 10);
 
     const modelPath = MODEL_ENDPOINT_MAP[req.model];

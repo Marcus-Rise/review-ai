@@ -31,14 +31,6 @@ describe('AmveraProvider', () => {
         };
         return map[key] ?? def;
       }),
-      getOrThrow: jest.fn((key: string) => {
-        const map: Record<string, string> = {
-          MODEL_ENDPOINT: 'https://kong-proxy.yc.amvera.ru/api/v1',
-        };
-        const val = map[key];
-        if (!val) throw new Error(`Missing ${key}`);
-        return val;
-      }),
     } as unknown as ConfigService;
   });
 
@@ -192,6 +184,29 @@ describe('AmveraProvider', () => {
     const result = await provider.complete(baseRequest);
     expect(result.content).toBe('');
     expect(result.usage).toBeUndefined();
+  });
+
+  it('should use custom endpoint when MODEL_ENDPOINT is set', async () => {
+    const customConfig = {
+      get: jest.fn((key: string, def?: unknown) => {
+        const map: Record<string, unknown> = {
+          MODEL_ENDPOINT: 'https://custom.amvera.example/api/v1',
+          MODEL_TIMEOUT_MS: '5000',
+        };
+        return map[key] ?? def;
+      }),
+    } as unknown as ConfigService;
+    const provider = new AmveraProvider(customConfig, 'test-token');
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(amveraResponse('{}')),
+    });
+
+    await provider.complete(baseRequest);
+
+    const [url] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('https://custom.amvera.example/api/v1/models/deepseek');
   });
 
   it('should map all supported models to correct paths', async () => {

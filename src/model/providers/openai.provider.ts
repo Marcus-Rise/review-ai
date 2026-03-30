@@ -6,6 +6,8 @@ import {
   ModelProviderResponse,
 } from './model-provider.interface';
 
+const DEFAULT_ENDPOINT = 'https://api.openai.com';
+
 export class OpenAiProvider implements ModelProvider {
   private readonly logger = new Logger(OpenAiProvider.name);
 
@@ -15,7 +17,7 @@ export class OpenAiProvider implements ModelProvider {
   ) {}
 
   async complete(req: ModelProviderRequest): Promise<ModelProviderResponse> {
-    const endpoint = this.config.getOrThrow<string>('MODEL_ENDPOINT');
+    const endpoint = this.config.get<string>('MODEL_ENDPOINT') || DEFAULT_ENDPOINT;
     const timeoutMs = parseInt(this.config.get<string>('MODEL_TIMEOUT_MS', '120000'), 10);
 
     const url = `${endpoint}/v1/chat/completions`;
