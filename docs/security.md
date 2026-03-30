@@ -62,7 +62,7 @@ The service registers `@fastify/helmet` to set production security headers on al
 | `X-DNS-Prefetch-Control` | `off` | Disables DNS prefetching |
 | `Referrer-Policy` | `no-referrer` | Prevents referrer leakage |
 
-When Swagger UI is enabled (`SWAGGER_ENABLED=true`), the CSP `style-src` directive includes `'unsafe-inline'` and `img-src` includes `data:` to allow Swagger UI rendering.
+When Swagger UI is enabled (`SWAGGER_ENABLED=true`), the CSP `script-src` and `style-src` directives include `'unsafe-inline'` and `img-src` includes `data:` to allow Swagger UI rendering (its bootstrap script and styles are inline).
 
 No additional environment variables are required.
 
