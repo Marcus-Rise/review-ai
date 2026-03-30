@@ -13,7 +13,7 @@ describe('AmveraProvider', () => {
   };
 
   const gptResponse = (content: string) => ({
-    choices: [{ message: { role: 'assistant', text: content } }],
+    choices: [{ message: { role: 'assistant', content: content } }],
     usage: {
       prompt_tokens: 100,
       completion_tokens: 50,
@@ -81,8 +81,8 @@ describe('AmveraProvider', () => {
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.messages).toEqual([
-      { role: 'system', text: 'You are a reviewer' },
-      { role: 'user', text: 'Review this code' },
+      { role: 'system', content: 'You are a reviewer' },
+      { role: 'user', content: 'Review this code' },
     ]);
   });
 
@@ -133,7 +133,7 @@ describe('AmveraProvider', () => {
     expect(body.response_format).toEqual({ type: 'json_object' });
   });
 
-  it('should parse response with text field', async () => {
+  it('should parse response with content field', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
