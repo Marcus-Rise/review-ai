@@ -6,24 +6,20 @@ import {
   ModelProviderResponse,
 } from './model-provider.interface';
 
-/** Маппинг model ID → путь эндпоинта Amvera */
-const MODEL_ENDPOINT_MAP: Record<string, string> = {
-  llama8b: '/models/llama',
-  llama70b: '/models/llama',
-  'gpt-4.1': '/models/gpt',
-  'gpt-5': '/models/gpt',
-  'deepseek-R1': '/models/deepseek',
-  'deepseek-V3': '/models/deepseek',
-  qwen3_30b: '/models/qwen',
-  qwen3_235b: '/models/qwen',
-};
+interface AmveraModelConfig {
+  endpoint: string;
+  reasoning?: boolean;
+}
 
-/**
- * Модели с reasoning — не поддерживают temperature,
- * вместо него используют reasoning_effort.
- * gpt-5 требует reasoning_effort: low чтобы уложиться в 60s gateway timeout Amvera.
- */
-const REASONING_MODELS = new Set<string>(['gpt-5']);
+/** Конфиг моделей Amvera: эндпоинт + поведение. Добавить модель = одна строка. */
+const MODELS: Record<string, AmveraModelConfig> = {
+  'gpt-4.1': { endpoint: '/models/gpt' },
+  'gpt-5': { endpoint: '/models/gpt', reasoning: true },
+  'deepseek-R1': { endpoint: '/models/deepseek' },
+  'deepseek-V3': { endpoint: '/models/deepseek' },
+  qwen3_30b: { endpoint: '/models/qwen' },
+  qwen3_235b: { endpoint: '/models/qwen' },
+};
 
 const DEFAULT_ENDPOINT = 'https://kong-proxy.yc.amvera.ru/api/v1';
 
@@ -39,17 +35,15 @@ export class AmveraProvider implements ModelProvider {
     const baseUrl = this.config.get<string>('MODEL_ENDPOINT') || DEFAULT_ENDPOINT;
     const timeoutMs = parseInt(this.config.get<string>('MODEL_TIMEOUT_MS', '120000'), 10);
 
-    const modelPath = MODEL_ENDPOINT_MAP[req.model];
-    if (!modelPath) {
+    const modelConfig = MODELS[req.model];
+    if (!modelConfig) {
       throw new Error(
-        `Unknown Amvera model "${req.model}". Supported: ${Object.keys(MODEL_ENDPOINT_MAP).join(', ')}`,
+        `Unknown Amvera model "${req.model}". Supported: ${Object.keys(MODELS).join(', ')}`,
       );
     }
 
-    const url = `${baseUrl}${modelPath}`;
-    const isReasoning = REASONING_MODELS.has(req.model);
+    const url = `${baseUrl}${modelConfig.endpoint}`;
 
-    // Amvera использует "text" вместо "content" в messages (Swagger spec)
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
@@ -58,7 +52,7 @@ export class AmveraProvider implements ModelProvider {
       ],
     };
 
-    if (isReasoning) {
+    if (modelConfig.reasoning) {
       body.reasoning_effort = 'low';
     } else {
       body.temperature = req.temperature;
@@ -89,30 +83,16 @@ export class AmveraProvider implements ModelProvider {
 
     const json = await res.json();
 
-    // GPT-формат: choices[].message.text (Swagger)
-    // Fallback на content (на случай изменений API)
-    // LLaMA-формат (deprecated): alternatives[].message.text
-    const gptMessage = json.choices?.[0]?.message;
-    const content =
-      gptMessage?.text ??
-      gptMessage?.content ??
-      json.alternatives?.[0]?.message?.text ??
-      json.result?.alternatives?.[0]?.message?.text ??
-      '';
-
-    // Usage: GPT = числа, LLaMA = строки
-    const usage = json.usage ?? json.result?.usage;
+    const message = json.choices?.[0]?.message;
+    const content = message?.text ?? message?.content ?? '';
 
     return {
       content,
-      usage: usage
+      usage: json.usage
         ? {
-            promptTokens: parseInt(String(usage.prompt_tokens ?? usage.inputTextTokens ?? 0), 10),
-            completionTokens: parseInt(
-              String(usage.completion_tokens ?? usage.completionTokens ?? 0),
-              10,
-            ),
-            totalTokens: parseInt(String(usage.total_tokens ?? usage.totalTokens ?? 0), 10),
+            promptTokens: json.usage.prompt_tokens,
+            completionTokens: json.usage.completion_tokens,
+            totalTokens: json.usage.total_tokens,
           }
         : undefined,
     };

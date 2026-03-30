@@ -12,14 +12,12 @@ describe('AmveraProvider', () => {
     jsonMode: false,
   };
 
-  const amveraResponse = (content: string) => ({
-    result: {
-      alternatives: [{ message: { role: 'assistant', text: content } }],
-      usage: {
-        inputTextTokens: '100',
-        completionTokens: '50',
-        totalTokens: '150',
-      },
+  const gptResponse = (content: string) => ({
+    choices: [{ message: { role: 'assistant', text: content } }],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      total_tokens: 150,
     },
   });
 
@@ -34,12 +32,12 @@ describe('AmveraProvider', () => {
     } as unknown as ConfigService;
   });
 
-  it('should map model to correct endpoint path', async () => {
+  it('should route model to correct endpoint path', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete(baseRequest);
@@ -61,7 +59,7 @@ describe('AmveraProvider', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete(baseRequest);
@@ -75,7 +73,7 @@ describe('AmveraProvider', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete(baseRequest);
@@ -88,12 +86,12 @@ describe('AmveraProvider', () => {
     ]);
   });
 
-  it('should not send temperature for reasoning models (gpt-5)', async () => {
+  it('should use reasoning_effort for reasoning models (gpt-5)', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete({ ...baseRequest, model: 'gpt-5' });
@@ -104,12 +102,12 @@ describe('AmveraProvider', () => {
     expect(body.reasoning_effort).toBe('low');
   });
 
-  it('should send temperature for non-GPT models', async () => {
+  it('should send temperature for non-reasoning models', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete(baseRequest);
@@ -117,14 +115,15 @@ describe('AmveraProvider', () => {
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.temperature).toBe(0.1);
+    expect(body.reasoning_effort).toBeUndefined();
   });
 
-  it('should send response_format json_object when jsonMode is true', async () => {
+  it('should send response_format when jsonMode is true', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete({ ...baseRequest, jsonMode: true });
@@ -132,27 +131,42 @@ describe('AmveraProvider', () => {
     const [, init] = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse(init.body);
     expect(body.response_format).toEqual({ type: 'json_object' });
-    expect(body.json_mode).toBeUndefined();
   });
 
-  it('should parse Amvera response format', async () => {
+  it('should parse response with text field', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{"findings":[]}')),
+      json: () => Promise.resolve(gptResponse('{"findings":[]}')),
     });
 
     const result = await provider.complete(baseRequest);
     expect(result.content).toBe('{"findings":[]}');
   });
 
-  it('should convert usage string values to numbers', async () => {
+  it('should fallback to content field in response', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { role: 'assistant', content: 'fallback-content' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+    });
+
+    const result = await provider.complete(baseRequest);
+    expect(result.content).toBe('fallback-content');
+  });
+
+  it('should parse usage as numbers', async () => {
+    const provider = new AmveraProvider(configService, 'test-token');
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     const result = await provider.complete(baseRequest);
@@ -175,12 +189,12 @@ describe('AmveraProvider', () => {
     await expect(provider.complete(baseRequest)).rejects.toThrow('Model API returned 403');
   });
 
-  it('should return empty content when response has no alternatives', async () => {
+  it('should return empty content when choices are empty', async () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ result: {} }),
+      json: () => Promise.resolve({ choices: [] }),
     });
 
     const result = await provider.complete(baseRequest);
@@ -202,7 +216,7 @@ describe('AmveraProvider', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(amveraResponse('{}')),
+      json: () => Promise.resolve(gptResponse('{}')),
     });
 
     await provider.complete(baseRequest);
@@ -215,8 +229,6 @@ describe('AmveraProvider', () => {
     const provider = new AmveraProvider(configService, 'test-token');
 
     const modelPaths: Record<string, string> = {
-      llama8b: '/models/llama',
-      llama70b: '/models/llama',
       'gpt-4.1': '/models/gpt',
       'gpt-5': '/models/gpt',
       'deepseek-R1': '/models/deepseek',
@@ -228,7 +240,7 @@ describe('AmveraProvider', () => {
     for (const [model, expectedPath] of Object.entries(modelPaths)) {
       global.fetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve(amveraResponse('{}')),
+        json: () => Promise.resolve(gptResponse('{}')),
       });
 
       await provider.complete({ ...baseRequest, model });

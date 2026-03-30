@@ -6,7 +6,26 @@
 
 ## Context
 
-`AmveraProvider` was implemented based on `docs.amvera.ru` documentation and the Swagger spec at `lllm-swagger-amvera-services.amvera.io` (saved as `docs/amvera-openapi.json`). During live testing, several discrepancies between spec and actual API behavior were found.
+`AmveraProvider` was implemented based on `docs.amvera.ru` documentation and the Swagger spec at `lllm-swagger-amvera-services.amvera.io` (saved as `docs/providers/amvera/openapi.json`). During live testing, several discrepancies between spec and actual API behavior were found.
+
+---
+
+## Model support
+
+Config-driven approach — each model is one entry in `MODELS` map:
+
+```typescript
+const MODELS: Record<string, AmveraModelConfig> = {
+  'gpt-4.1':      { endpoint: '/models/gpt' },
+  'gpt-5':        { endpoint: '/models/gpt', reasoning: true },
+  'deepseek-R1':  { endpoint: '/models/deepseek' },
+  'deepseek-V3':  { endpoint: '/models/deepseek' },
+  'qwen3_30b':    { endpoint: '/models/qwen' },
+  'qwen3_235b':   { endpoint: '/models/qwen' },
+};
+```
+
+LLaMA (`/models/llama`) — **removed**, deprecated by Amvera.
 
 ---
 
@@ -53,9 +72,7 @@
 
 **Cause:** `gpt-5` is a reasoning model (GPT-5 uses internal chain-of-thought). Without a cap, it exceeds the gateway timeout on real-size code review prompts.
 
-**Decision:** `gpt-5` placed in `REASONING_MODELS` set — gets `reasoning_effort: "low"` instead of `temperature`. `gpt-4.1` is NOT a reasoning model and gets `temperature` normally.
-
----
+**Decision:** models with `reasoning: true` in config get `reasoning_effort: "low"` instead of `temperature`.
 
 ---
 
@@ -72,27 +89,21 @@
 - `MAX_DIFF_CHARS_PER_FILE`: 10000 → 4000
 - `MAX_TOTAL_DIFF_CHARS`: 100000 → 12000
 
-Это даёт body ~14KB при полном использовании лимитов (diff 12K + system prompt ~1.5K + overhead ~0.5K + JSON escaping ~10%).
-
 ---
 
 ## Current behavior (as implemented)
 
-| Parameter | gpt-5 | gpt-4.1 | deepseek/qwen/llama |
-|-----------|-------|---------|---------------------|
+| Parameter | gpt-5 | gpt-4.1 | deepseek/qwen |
+|-----------|-------|---------|---------------|
 | `temperature` | ✗ | ✓ | ✓ |
 | `reasoning_effort: "low"` | ✓ | ✗ | ✗ |
 | `response_format` | when `jsonMode=true` | when `jsonMode=true` | when `jsonMode=true` |
 | messages field | `text` | `text` | `text` |
 
-## Response parsing fallback chain
+## Response parsing
 
 ```
-choices[0].message.text         ← GPT-format (Swagger canonical)
-  ?? choices[0].message.content ← GPT-format (empirical variant)
-  ?? alternatives[0].message.text          ← LLaMA-format (deprecated endpoint)
-  ?? result.alternatives[0].message.text   ← LLaMA-format (legacy wrapper)
+choices[0].message.text     ← Swagger canonical
+  ?? choices[0].message.content  ← empirical variant
   ?? ''
 ```
-
-Usage parsing normalizes both numeric (GPT) and string (LLaMA) values.
