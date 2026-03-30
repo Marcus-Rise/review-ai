@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsBoolean,
@@ -12,11 +11,6 @@ import {
 import { Type } from 'class-transformer';
 
 export class GitLabDto {
-  @ApiProperty({ description: 'GitLab instance base URL' })
-  @IsString()
-  @IsNotEmpty()
-  base_url!: string;
-
   @ApiPropertyOptional({ description: 'Project path (group/project)' })
   @IsString()
   @IsOptional()

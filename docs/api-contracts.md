@@ -18,7 +18,6 @@ Primary MVP endpoint. Runs AI review on a GitLab merge request.
 {
   "api_version": "v1",
   "gitlab": {
-    "base_url": "https://gitlab.example.com",
     "project_path": "group/project",
     "mr_iid": 123,
     "base_sha": "optional",
@@ -106,9 +105,8 @@ Swagger / OpenAPI documentation (when `SWAGGER_ENABLED=true`).
 ## Validation Rules
 
 - `api_version` must be `"v1"`
-- `gitlab.base_url` is required
 - `gitlab.mr_iid` is required
-- GitLab token is configured per client in `clients.json` (not passed in the request)
+- GitLab token and base URL are configured per client in `clients.json` (not passed in the request)
 - Either `gitlab.project_path` or `gitlab.project_id` must be provided
 - `review.mode` must be `"mr"`
 - `review.profile` must be `"default"`, `"security"`, or `"thorough"`

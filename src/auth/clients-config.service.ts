@@ -58,6 +58,9 @@ export class ClientsConfigService implements OnModuleInit {
     if (!client.gitlab_token || typeof client.gitlab_token !== 'string') {
       throw new Error(`Client ${client.client_id}: missing valid gitlab_token`);
     }
+    if (!client.gitlab_base_url || typeof client.gitlab_base_url !== 'string') {
+      throw new Error(`Client ${client.client_id}: missing valid gitlab_base_url`);
+    }
     if (!Array.isArray(client.allowed_endpoints)) {
       throw new Error(`Client ${client.client_id}: missing allowed_endpoints array`);
     }

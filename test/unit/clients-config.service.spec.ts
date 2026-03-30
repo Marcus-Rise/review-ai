@@ -34,6 +34,7 @@ describe('ClientsConfigService', () => {
           api_key: 'key123',
           client_secret: 'secret',
           gitlab_token: 'glpat-test',
+          gitlab_base_url: 'https://gitlab.example.com',
           enabled: true,
           allowed_endpoints: ['/api/v1/reviews/run'],
           rate_limit: { requests: 1, per_seconds: 60 },
@@ -79,6 +80,26 @@ describe('ClientsConfigService', () => {
     await expect(service.loadConfig()).rejects.toThrow('missing valid gitlab_token');
   });
 
+  it('should reject client without gitlab_base_url', async () => {
+    await writeFile(
+      tmpFile,
+      JSON.stringify({
+        clients: [
+          {
+            client_id: 'test',
+            api_key: 'key',
+            client_secret: 'secret',
+            gitlab_token: 'glpat-test',
+            enabled: true,
+            allowed_endpoints: [],
+            rate_limit: { requests: 1, per_seconds: 60 },
+          },
+        ],
+      }),
+    );
+    await expect(service.loadConfig()).rejects.toThrow('missing valid gitlab_base_url');
+  });
+
   it('should handle missing config path gracefully', async () => {
     (configService.get as jest.Mock).mockReturnValue(undefined);
     await service.loadConfig();
@@ -93,6 +114,7 @@ describe('ClientsConfigService', () => {
           api_key: 'key123',
           client_secret: 'secret',
           gitlab_token: 'glpat-test',
+          gitlab_base_url: 'https://gitlab.example.com',
           enabled: true,
           allowed_endpoints: ['/api/v1/reviews/run'],
         },
@@ -110,6 +132,7 @@ describe('ClientsConfigService', () => {
           api_key: 'key123',
           client_secret: 'secret',
           gitlab_token: 'glpat-test',
+          gitlab_base_url: 'https://gitlab.example.com',
           enabled: true,
           allowed_endpoints: ['/api/v1/reviews/run'],
           rate_limit: { requests: 0, per_seconds: -1 },
@@ -128,6 +151,7 @@ describe('ClientsConfigService', () => {
           api_key: 'key1',
           client_secret: 'secret',
           gitlab_token: 'glpat-test',
+          gitlab_base_url: 'https://gitlab.example.com',
           enabled: true,
           allowed_endpoints: [],
           rate_limit: { requests: 1, per_seconds: 60 },

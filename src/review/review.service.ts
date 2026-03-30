@@ -64,7 +64,7 @@ export class ReviewService {
     }
 
     const gitlabConfig: GitLabConfig = {
-      base_url: dto.gitlab.base_url,
+      base_url: client.gitlab_base_url,
       project_path: dto.gitlab.project_path,
       project_id: dto.gitlab.project_id,
       mr_iid: dto.gitlab.mr_iid,
