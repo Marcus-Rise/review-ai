@@ -270,4 +270,46 @@ The service caches responses by this key (in-memory, 5 min TTL).
 
 ## Next step: GitLab CI integration
 
-Once manual testing works, set up the GitLab CI job. See [`.gitlab-ci.yml.example`](../.gitlab-ci.yml.example) and the [GitLab CI Integration](#) section in the README.
+Once manual testing works, set up the CI job in your GitLab project.
+
+### 1. Add CI/CD variables
+
+In the client project, go to **Settings → CI/CD → Variables** and add:
+
+| Variable | Value | Options |
+|----------|-------|---------|
+| `AI_REVIEW_SERVICE_URL` | `https://your-review-service:3000` | Masked |
+| `AI_REVIEW_API_KEY` | Bearer token from `clients.json` | Masked, Protected |
+| `AI_REVIEW_CLIENT_ID` | Client ID from `clients.json` | Masked |
+
+### 2. Include the template
+
+Add to the client project's `.gitlab-ci.yml`:
+
+```yaml
+include:
+  - project: 'infra/review-ai'   # adjust to your GitLab project path
+    ref: main                      # pin to a tag for stability
+    file: '/templates/review-ai.yml'
+
+stages:
+  - review
+```
+
+### 3. Run a review
+
+Push or update an MR — a manual `ai-review` job appears in the pipeline. Click **Play** to trigger the review.
+
+### 4. Enable auto-trigger (optional)
+
+To run review automatically on every MR push, set `AI_REVIEW_AUTO` to `true` in the project's CI/CD variables, or override in `.gitlab-ci.yml`:
+
+```yaml
+ai-review:
+  variables:
+    AI_REVIEW_AUTO: "true"
+```
+
+For the standalone inline job (no `include`), see [`.gitlab-ci.yml.example`](../.gitlab-ci.yml.example).
+
+See the [GitLab CI Integration](../README.md#gitlab-ci-integration) section in the README for more details.

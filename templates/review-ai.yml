@@ -1,0 +1,76 @@
+# Reusable GitLab CI template for AI code review
+#
+# Include in your project:
+#
+#   include:
+#     - project: 'infra/review-ai'
+#       ref: main
+#       file: '/templates/review-ai.yml'
+#
+# Required CI/CD variables (set as masked secrets in project settings):
+#   AI_REVIEW_SERVICE_URL - URL of the review-ai service (e.g. https://review.internal:3000)
+#   AI_REVIEW_API_KEY     - Bearer token matching clients.json on the service
+#   AI_REVIEW_CLIENT_ID   - Client ID matching clients.json on the service
+#
+# Optional variables:
+#   AI_REVIEW_AUTO    - set to "true" to trigger automatically on MR push (default: manual)
+#
+# The template provides:
+#   .ai-review  - hidden base job (extend for full customization)
+#   ai-review   - concrete job, manual by default, auto when AI_REVIEW_AUTO == "true"
+
+# --- Hidden base job ---
+.ai-review:
+  stage: review
+  image: curlimages/curl:latest
+  variables:
+    REVIEW_MODE: "mr"
+    REVIEW_DRY_RUN: "false"
+    REVIEW_PROFILE: "default"
+    REVIEW_USER_FOCUS: ""
+  script:
+    - |
+      if [ -z "$CI_MERGE_REQUEST_IID" ]; then
+        echo "Not a merge request pipeline — skipping."
+        exit 0
+      fi
+      echo "Running AI review for MR !${CI_MERGE_REQUEST_IID}..."
+      RESPONSE=$(curl -s -w "\n%{http_code}" \
+        --max-time 300 \
+        -X POST "${AI_REVIEW_SERVICE_URL}/api/v1/reviews/run" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${AI_REVIEW_API_KEY}" \
+        -H "X-Client-Id: ${AI_REVIEW_CLIENT_ID}" \
+        -H "Idempotency-Key: mr-${CI_MERGE_REQUEST_IID}-pipeline-${CI_PIPELINE_ID}" \
+        -d "{
+          \"api_version\": \"v1\",
+          \"gitlab\": {
+            \"project_path\": \"${CI_PROJECT_PATH}\",
+            \"mr_iid\": ${CI_MERGE_REQUEST_IID}
+          },
+          \"review\": {
+            \"mode\": \"${REVIEW_MODE}\",
+            \"dry_run\": ${REVIEW_DRY_RUN},
+            \"profile\": \"${REVIEW_PROFILE}\",
+            \"user_focus\": \"${REVIEW_USER_FOCUS}\"
+          }
+        }")
+      HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+      BODY=$(echo "$RESPONSE" | head -n -1)
+      echo "Status: $HTTP_CODE"
+      echo "$BODY" | head -100
+      if [ "$HTTP_CODE" -ge 400 ]; then
+        echo "Review request failed with status $HTTP_CODE"
+        exit 1
+      fi
+
+# --- Concrete job: auto when AI_REVIEW_AUTO == "true", manual otherwise ---
+ai-review:
+  extends: .ai-review
+  rules:
+    - if: $CI_MERGE_REQUEST_IID && $AI_REVIEW_AUTO == "true"
+      when: on_success
+      allow_failure: true
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
+      allow_failure: true
