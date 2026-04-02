@@ -24,8 +24,9 @@ export class PublisherService {
     dryRun: boolean,
     fileChanges?: Array<{ path: string; old_path: string; renamed_file: boolean }>,
   ): Promise<{ results: PublishResult[]; reviewActions: ReviewAction[] }> {
-    const results: PublishResult[] = [];
-    const reviewActions: ReviewAction[] = [];
+    // Use indexed arrays to preserve original action order
+    const results: (PublishResult | undefined)[] = new Array(actions.length);
+    const reviewActions: (ReviewAction | undefined)[] = new Array(actions.length);
 
     // Separate actions that need GitLab API calls from those that don't
     const gitlabActions: Array<{ index: number; action: PublishAction }> = [];
@@ -34,13 +35,13 @@ export class PublisherService {
       const action = actions[i];
 
       if (action.decision === 'skip') {
-        reviewActions.push({
+        reviewActions[i] = {
           type: 'skip',
           path: action.finding.file_path,
           line: action.finding.line,
           reason: action.reason,
-        });
-        results.push({ action, success: true });
+        };
+        results[i] = { action, success: true };
         continue;
       }
 
@@ -51,15 +52,15 @@ export class PublisherService {
             : action.decision === 'new_discussion_with_suggestion'
               ? this.formatSuggestionBody(action.finding)
               : this.formatDiscussionBody(action.finding);
-        reviewActions.push({
+        reviewActions[i] = {
           type: action.decision === 'reply' ? 'reply' : action.decision,
           path: action.finding.file_path,
           line: action.finding.line,
           discussion_id: action.existing_discussion_id,
           reason: `[DRY RUN] ${action.reason}`,
           body: dryRunBody,
-        });
-        results.push({ action, success: true });
+        };
+        results[i] = { action, success: true };
         continue;
       }
 
@@ -80,11 +81,11 @@ export class PublisherService {
       );
 
       for (let j = 0; j < gitlabActions.length; j++) {
-        const { action } = gitlabActions[j];
+        const { index, action } = gitlabActions[j];
         const outcome = settled[j];
 
         if (outcome.status === 'fulfilled') {
-          results.push(outcome.value);
+          results[index] = outcome.value;
           const body =
             action.decision === 'reply'
               ? this.formatReplyBody(action.finding)
@@ -97,24 +98,24 @@ export class PublisherService {
               : action.decision === 'reply'
                 ? 'reply'
                 : action.decision;
-          reviewActions.push({
+          reviewActions[index] = {
             type: effectiveType,
             path: action.finding.file_path,
             line: action.finding.line,
             discussion_id: outcome.value.discussion_id || action.existing_discussion_id,
             reason: action.reason,
             body,
-          });
+          };
         } else {
           const error = outcome.reason;
           this.logger.error(
             `Failed to publish action for ${action.finding.file_path}:${action.finding.line}: ${error}`,
           );
-          results.push({
+          results[index] = {
             action,
             success: false,
             error: error instanceof Error ? error.message : String(error),
-          });
+          };
         }
       }
 
@@ -123,7 +124,10 @@ export class PublisherService {
       );
     }
 
-    return { results, reviewActions };
+    return {
+      results: results.filter((r): r is PublishResult => r !== undefined),
+      reviewActions: reviewActions.filter((a): a is ReviewAction => a !== undefined),
+    };
   }
 
   private async executeActionTimed(

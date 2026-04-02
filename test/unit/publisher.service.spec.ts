@@ -301,4 +301,27 @@ describe('PublisherService', () => {
     expect(results[1].error).toContain('GitLab 500');
     expect(results[2].success).toBe(true);
   });
+
+  it('should preserve original action order with mixed skip and GitLab actions', async () => {
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'a.ts' }, reason: 'New' },
+      { decision: 'skip', finding: { ...baseFinding, file_path: 'b.ts' }, reason: 'Dup' },
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'c.ts' }, reason: 'New' },
+    ];
+
+    const { results, reviewActions } = await publisher.publish(
+      actions,
+      mockGitlab,
+      diffRefs,
+      false,
+    );
+
+    expect(results).toHaveLength(3);
+    expect(reviewActions).toHaveLength(3);
+    // Order must match input: new_discussion, skip, new_discussion
+    expect(reviewActions[0].path).toBe('a.ts');
+    expect(reviewActions[1].type).toBe('skip');
+    expect(reviewActions[1].path).toBe('b.ts');
+    expect(reviewActions[2].path).toBe('c.ts');
+  });
 });
