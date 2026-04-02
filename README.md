@@ -202,6 +202,8 @@ See [docs/providers/amvera/findings.md](docs/providers/amvera/findings.md) for A
 | `MODEL_REASONING_EFFORT` | `low` | Reasoning effort for reasoning models (`none`, `low`, `medium`, `high`). `none` omits the parameter |
 | `REQUEST_BODY_LIMIT` | `1048576` | Max request body size in bytes (1MB) |
 | `REQUEST_TIMEOUT_MS` | `300000` | Global request timeout in ms (5min) |
+| `GITLAB_PUBLISH_CONCURRENCY` | `5` | Max parallel GitLab API calls when publishing findings (1–20) |
+| `GITLAB_REQUEST_TIMEOUT_MS` | `30000` | Per-request timeout for GitLab API calls in ms |
 
 ### Client Auth Config
 

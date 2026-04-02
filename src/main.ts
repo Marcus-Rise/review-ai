@@ -12,12 +12,15 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
 
 async function bootstrap() {
   const bodyLimit = parseInt(process.env.REQUEST_BODY_LIMIT || '', 10) || 1024 * 1024;
+  const requestTimeout = parseInt(process.env.REQUEST_TIMEOUT_MS || '', 10) || 300_000;
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
       bodyLimit,
       trustProxy: true,
+      requestTimeout,
+      connectionTimeout: requestTimeout,
     }),
     { bufferLogs: true },
   );

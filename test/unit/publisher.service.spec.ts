@@ -1,4 +1,6 @@
 import { Logger } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { PublisherService } from '../../src/publish/publisher.service';
 import { GitLabService } from '../../src/gitlab/gitlab.service';
 import { PublishAction } from '../../src/publish/publish.types';
@@ -31,12 +33,26 @@ describe('PublisherService', () => {
   let errorSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     gitlabService = {
       createDiscussion: jest.fn().mockResolvedValue({ id: 'new-disc-1' }),
       replyToDiscussion: jest.fn().mockResolvedValue(undefined),
     } as unknown as GitLabService;
-    publisher = new PublisherService(gitlabService);
+
+    const module = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({
+          load: [
+            () => ({
+              GITLAB_PUBLISH_CONCURRENCY: 5,
+            }),
+          ],
+        }),
+      ],
+      providers: [PublisherService, { provide: GitLabService, useValue: gitlabService }],
+    }).compile();
+
+    publisher = module.get(PublisherService);
     errorSpy = jest.spyOn(Logger.prototype, 'error');
     warnSpy = jest.spyOn(Logger.prototype, 'warn');
   });
@@ -241,5 +257,71 @@ describe('PublisherService', () => {
     const call = (gitlabService.createDiscussion as jest.Mock).mock.calls[0];
     expect(call[1].body).toContain('```suggestion');
     expect(call[1].body).toContain('const x = 1;');
+  });
+
+  it('should publish multiple actions in parallel', async () => {
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    (gitlabService.createDiscussion as jest.Mock).mockImplementation(async () => {
+      await delay(100);
+      return { id: 'disc' };
+    });
+
+    const actions: PublishAction[] = Array.from({ length: 4 }, (_, i) => ({
+      decision: 'new_discussion' as const,
+      finding: { ...baseFinding, file_path: `src/file${i}.ts` },
+      reason: 'New',
+    }));
+
+    const start = Date.now();
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+    const elapsed = Date.now() - start;
+
+    expect(results).toHaveLength(4);
+    expect(results.every((r) => r.success)).toBe(true);
+    // 4 actions at 100ms each in parallel should take ~100ms, not ~400ms
+    expect(elapsed).toBeLessThan(350);
+  });
+
+  it('should handle partial failure in parallel execution', async () => {
+    (gitlabService.createDiscussion as jest.Mock)
+      .mockResolvedValueOnce({ id: 'disc-1' })
+      .mockRejectedValueOnce(new Error('GitLab 500'))
+      .mockResolvedValueOnce({ id: 'disc-3' });
+
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'a.ts' }, reason: 'New' },
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'b.ts' }, reason: 'New' },
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'c.ts' }, reason: 'New' },
+    ];
+
+    const { results } = await publisher.publish(actions, mockGitlab, diffRefs, false);
+
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(false);
+    expect(results[1].error).toContain('GitLab 500');
+    expect(results[2].success).toBe(true);
+  });
+
+  it('should preserve original action order with mixed skip and GitLab actions', async () => {
+    const actions: PublishAction[] = [
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'a.ts' }, reason: 'New' },
+      { decision: 'skip', finding: { ...baseFinding, file_path: 'b.ts' }, reason: 'Dup' },
+      { decision: 'new_discussion', finding: { ...baseFinding, file_path: 'c.ts' }, reason: 'New' },
+    ];
+
+    const { results, reviewActions } = await publisher.publish(
+      actions,
+      mockGitlab,
+      diffRefs,
+      false,
+    );
+
+    expect(results).toHaveLength(3);
+    expect(reviewActions).toHaveLength(3);
+    // Order must match input: new_discussion, skip, new_discussion
+    expect(reviewActions[0].path).toBe('a.ts');
+    expect(reviewActions[1].type).toBe('skip');
+    expect(reviewActions[1].path).toBe('b.ts');
+    expect(reviewActions[2].path).toBe('c.ts');
   });
 });

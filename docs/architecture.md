@@ -69,3 +69,4 @@ src/
 - **Deduplication first**: Existing discussions checked before publishing
 - **No database**: All state is in-memory, resets on restart
 - **Deterministic publishing**: GitLab API calls are explicit, never delegated to model
+- **Parallel publishing**: Findings are posted to GitLab concurrently (configurable concurrency) to reduce wall time
