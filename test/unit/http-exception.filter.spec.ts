@@ -156,6 +156,19 @@ describe('GlobalExceptionFilter', () => {
         '[req-str] Non-error exception: "something went wrong"',
       );
     });
+
+    it('should fall back to String() when JSON.stringify throws (circular reference)', () => {
+      const { host, status } = createMockHost('req-circ');
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+
+      filter.catch(circular, host);
+
+      expect(status).toHaveBeenCalledWith(500);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[req-circ] Non-error exception:'),
+      );
+    });
   });
 
   describe('statusToCode mapping', () => {

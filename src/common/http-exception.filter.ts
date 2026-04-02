@@ -59,9 +59,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         this.logger.warn(`[${requestId || 'unknown'}] ${exception.message}`);
       }
     } else {
-      this.logger.error(
-        `[${requestId || 'unknown'}] Non-error exception: ${JSON.stringify(exception)}`,
-      );
+      let serialized: string;
+      try {
+        serialized = JSON.stringify(exception);
+      } catch {
+        serialized = String(exception);
+      }
+      this.logger.error(`[${requestId || 'unknown'}] Non-error exception: ${serialized}`);
     }
 
     const body: ErrorResponseBody = {
