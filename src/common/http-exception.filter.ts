@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
 
 interface ErrorResponseBody {
@@ -13,6 +20,8 @@ interface ErrorResponseBody {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
@@ -41,6 +50,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
       code = this.statusToCode(status);
       retryable = status === 429 || status >= 500;
+    }
+
+    if (exception instanceof Error) {
+      if (status >= 500) {
+        this.logger.error(`[${requestId || 'unknown'}] ${exception.message}`, exception.stack);
+      } else {
+        this.logger.warn(`[${requestId || 'unknown'}] ${exception.message}`);
+      }
+    } else {
+      this.logger.error(
+        `[${requestId || 'unknown'}] Non-error exception: ${JSON.stringify(exception)}`,
+      );
     }
 
     const body: ErrorResponseBody = {
