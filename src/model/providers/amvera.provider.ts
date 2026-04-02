@@ -52,16 +52,20 @@ export class AmveraProvider implements ModelProvider {
       ],
     };
 
+    let reasoningActive = false;
     if (modelConfig.reasoning) {
       const effort = this.config.get<string>('MODEL_REASONING_EFFORT', 'low');
       if (effort !== 'none') {
         body.reasoning_effort = effort;
+        reasoningActive = true;
       }
-    } else {
+    }
+
+    if (!reasoningActive) {
       body.temperature = req.temperature;
     }
 
-    if (req.jsonMode && !modelConfig.reasoning) {
+    if (req.jsonMode && !reasoningActive) {
       body.response_format = { type: 'json_object' };
     }
 

@@ -70,7 +70,7 @@ LLaMA (`/models/llama`) — **removed**, deprecated by Amvera.
 
 **Cause:** Amvera proxy (or underlying OpenAI API) does not support `response_format` with reasoning models. This is consistent with OpenAI's o-series behavior.
 
-**Decision:** skip `response_format` for models with `reasoning: true`. The system prompt already mandates JSON output, so the field is redundant.
+**Decision:** skip `response_format` only when `reasoning_effort` is actually sent (i.e. model has `reasoning: true` AND `MODEL_REASONING_EFFORT` is not `none`). When reasoning is disabled via `MODEL_REASONING_EFFORT=none`, `response_format` is safe to include. The system prompt also mandates JSON output as a fallback.
 
 ---
 
@@ -119,7 +119,7 @@ Local models (Ollama) and direct OpenAI API are not affected by these restrictio
 |-----------|-------|---------|---------------|
 | `temperature` | ✗ | ✓ | ✓ |
 | `reasoning_effort` | ✓ (configurable) | ✗ | ✗ |
-| `response_format` | ✗ (incompatible) | when `jsonMode=true` | when `jsonMode=true` |
+| `response_format` | ✗ when reasoning active | when `jsonMode=true` | when `jsonMode=true` |
 | messages field | `text` (per spec) | `text` (per spec) | `text` (per spec) |
 
 ## Response parsing
