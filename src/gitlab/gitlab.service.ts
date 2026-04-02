@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   GitLabMergeRequest,
   GitLabDiffVersion,
@@ -11,6 +12,11 @@ import { GitLabConfig } from '../common/interfaces';
 @Injectable()
 export class GitLabService {
   private readonly logger = new Logger(GitLabService.name);
+  private readonly requestTimeoutMs: number;
+
+  constructor(private readonly configService: ConfigService) {
+    this.requestTimeoutMs = this.configService.get<number>('GITLAB_REQUEST_TIMEOUT_MS', 30_000);
+  }
 
   private buildUrl(config: GitLabConfig, path: string): string {
     const projectEncoded = encodeURIComponent(config.project_path || String(config.project_id));
@@ -28,6 +34,7 @@ export class GitLabService {
     const response = await fetch(url, {
       ...init,
       headers: { ...this.headers(config), ...init?.headers },
+      signal: AbortSignal.timeout(this.requestTimeoutMs),
     });
 
     if (!response.ok) {

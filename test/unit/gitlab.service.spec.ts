@@ -1,3 +1,5 @@
+import { Test } from '@nestjs/testing';
+import { ConfigModule } from '@nestjs/config';
 import { GitLabService } from '../../src/gitlab/gitlab.service';
 import { GitLabConfig } from '../../src/common/interfaces';
 
@@ -11,8 +13,21 @@ const config: GitLabConfig = {
 describe('GitLabService', () => {
   let service: GitLabService;
 
-  beforeEach(() => {
-    service = new GitLabService();
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({
+          load: [
+            () => ({
+              GITLAB_REQUEST_TIMEOUT_MS: 30_000,
+            }),
+          ],
+        }),
+      ],
+      providers: [GitLabService],
+    }).compile();
+
+    service = module.get(GitLabService);
   });
 
   afterEach(() => {
@@ -111,5 +126,16 @@ describe('GitLabService', () => {
     await service.getMergeRequest(config);
     const url = (global.fetch as jest.Mock).mock.calls[0][0];
     expect(url).toContain('group%2Fproject');
+  });
+
+  it('should pass AbortSignal timeout to fetch', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ iid: 42 }),
+    });
+
+    await service.getMergeRequest(config);
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    expect(fetchCall[1].signal).toBeDefined();
   });
 });

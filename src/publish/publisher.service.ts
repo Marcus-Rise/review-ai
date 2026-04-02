@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { GitLabService } from '../gitlab/gitlab.service';
 import { GitLabConfig, ReviewAction } from '../common/interfaces';
 import { PublishAction, PublishResult } from './publish.types';
@@ -7,8 +8,14 @@ import { CreateDiscussionPayload, GitLabDiffPositionPayload } from '../gitlab/gi
 @Injectable()
 export class PublisherService {
   private readonly logger = new Logger(PublisherService.name);
+  private readonly concurrency: number;
 
-  constructor(private readonly gitlab: GitLabService) {}
+  constructor(
+    private readonly gitlab: GitLabService,
+    private readonly configService: ConfigService,
+  ) {
+    this.concurrency = this.configService.get<number>('GITLAB_PUBLISH_CONCURRENCY', 5);
+  }
 
   async publish(
     actions: PublishAction[],
@@ -20,7 +27,12 @@ export class PublisherService {
     const results: PublishResult[] = [];
     const reviewActions: ReviewAction[] = [];
 
-    for (const action of actions) {
+    // Separate actions that need GitLab API calls from those that don't
+    const gitlabActions: Array<{ index: number; action: PublishAction }> = [];
+
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+
       if (action.decision === 'skip') {
         reviewActions.push({
           type: 'skip',
@@ -51,42 +63,101 @@ export class PublisherService {
         continue;
       }
 
-      try {
-        const result = await this.executeAction(action, gitlabConfig, diffRefs, fileChanges);
-        results.push(result);
-        const body =
-          action.decision === 'reply'
-            ? this.formatReplyBody(action.finding)
-            : action.decision === 'new_discussion_with_suggestion'
-              ? this.formatSuggestionBody(action.finding)
-              : this.formatDiscussionBody(action.finding);
-        const effectiveType =
-          action.decision === 'reply' && !action.existing_discussion_id
-            ? 'new_discussion'
-            : action.decision === 'reply'
-              ? 'reply'
-              : action.decision;
-        reviewActions.push({
-          type: effectiveType,
-          path: action.finding.file_path,
-          line: action.finding.line,
-          discussion_id: result.discussion_id || action.existing_discussion_id,
-          reason: action.reason,
-          body,
-        });
-      } catch (error) {
-        this.logger.error(
-          `Failed to publish action for ${action.finding.file_path}:${action.finding.line}: ${error}`,
-        );
-        results.push({
-          action,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      gitlabActions.push({ index: i, action });
+    }
+
+    // Publish to GitLab in parallel with concurrency limit
+    if (gitlabActions.length > 0) {
+      const publishStart = Date.now();
+
+      const settled = await this.executeInParallel(
+        gitlabActions.map(
+          ({ action }) =>
+            () =>
+              this.executeActionTimed(action, gitlabConfig, diffRefs, fileChanges),
+        ),
+        this.concurrency,
+      );
+
+      for (let j = 0; j < gitlabActions.length; j++) {
+        const { action } = gitlabActions[j];
+        const outcome = settled[j];
+
+        if (outcome.status === 'fulfilled') {
+          results.push(outcome.value);
+          const body =
+            action.decision === 'reply'
+              ? this.formatReplyBody(action.finding)
+              : action.decision === 'new_discussion_with_suggestion'
+                ? this.formatSuggestionBody(action.finding)
+                : this.formatDiscussionBody(action.finding);
+          const effectiveType =
+            action.decision === 'reply' && !action.existing_discussion_id
+              ? 'new_discussion'
+              : action.decision === 'reply'
+                ? 'reply'
+                : action.decision;
+          reviewActions.push({
+            type: effectiveType,
+            path: action.finding.file_path,
+            line: action.finding.line,
+            discussion_id: outcome.value.discussion_id || action.existing_discussion_id,
+            reason: action.reason,
+            body,
+          });
+        } else {
+          const error = outcome.reason;
+          this.logger.error(
+            `Failed to publish action for ${action.finding.file_path}:${action.finding.line}: ${error}`,
+          );
+          results.push({
+            action,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
+
+      this.logger.log(
+        `Publishing complete: ${settled.filter((s) => s.status === 'fulfilled').length}/${gitlabActions.length} succeeded in ${Date.now() - publishStart}ms (concurrency=${this.concurrency})`,
+      );
     }
 
     return { results, reviewActions };
+  }
+
+  private async executeActionTimed(
+    action: PublishAction,
+    config: GitLabConfig,
+    diffRefs: { base_sha: string; head_sha: string; start_sha: string },
+    fileChanges?: Array<{ path: string; old_path: string; renamed_file: boolean }>,
+  ): Promise<PublishResult> {
+    const start = Date.now();
+    try {
+      const result = await this.executeAction(action, config, diffRefs, fileChanges);
+      this.logger.debug(
+        `Published ${action.decision} for ${action.finding.file_path}:${action.finding.line} in ${Date.now() - start}ms`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.debug(
+        `Failed ${action.decision} for ${action.finding.file_path}:${action.finding.line} in ${Date.now() - start}ms`,
+      );
+      throw error;
+    }
+  }
+
+  private async executeInParallel<T>(
+    tasks: Array<() => Promise<T>>,
+    concurrency: number,
+  ): Promise<PromiseSettledResult<T>[]> {
+    const results: PromiseSettledResult<T>[] = [];
+    for (let i = 0; i < tasks.length; i += concurrency) {
+      const chunk = tasks.slice(i, i + concurrency);
+      const chunkResults = await Promise.allSettled(chunk.map((fn) => fn()));
+      results.push(...chunkResults);
+    }
+    return results;
   }
 
   private async executeAction(

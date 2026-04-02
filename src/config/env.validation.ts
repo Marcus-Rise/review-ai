@@ -27,4 +27,8 @@ export const envValidation = Joi.object({
     .min(1024)
     .default(1024 * 1024),
   REQUEST_TIMEOUT_MS: Joi.number().integer().min(1000).default(300_000),
+
+  // GitLab
+  GITLAB_PUBLISH_CONCURRENCY: Joi.number().integer().min(1).max(20).default(5),
+  GITLAB_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1000).default(30_000),
 }).unknown(true);
