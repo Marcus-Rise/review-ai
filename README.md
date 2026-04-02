@@ -199,6 +199,7 @@ See [docs/providers/amvera/findings.md](docs/providers/amvera/findings.md) for A
 | `MODEL_NAME` | — | Model name to use |
 | `MODEL_API_KEY_PATH` | — | Path to file containing model API key (required for Amvera) |
 | `MODEL_TIMEOUT_MS` | `120000` | Model call timeout in ms |
+| `MODEL_REASONING_EFFORT` | `low` | Reasoning effort for reasoning models (`none`, `low`, `medium`, `high`). `none` omits the parameter |
 | `REQUEST_BODY_LIMIT` | `1048576` | Max request body size in bytes (1MB) |
 | `REQUEST_TIMEOUT_MS` | `300000` | Global request timeout in ms (5min) |
 

@@ -19,6 +19,7 @@ export const envValidation = Joi.object({
   MODEL_NAME: Joi.string().optional(),
   MODEL_TIMEOUT_MS: Joi.number().integer().min(1000).default(120_000),
   MODEL_API_KEY_PATH: Joi.string().optional(),
+  MODEL_REASONING_EFFORT: Joi.string().valid('none', 'low', 'medium', 'high').default('low'),
 
   // Request limits
   REQUEST_BODY_LIMIT: Joi.number()

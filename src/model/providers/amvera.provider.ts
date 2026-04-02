@@ -52,15 +52,24 @@ export class AmveraProvider implements ModelProvider {
       ],
     };
 
+    let reasoningActive = false;
     if (modelConfig.reasoning) {
-      body.reasoning_effort = 'low';
-    } else {
+      const effort = this.config.get<string>('MODEL_REASONING_EFFORT', 'low');
+      if (effort !== 'none') {
+        body.reasoning_effort = effort;
+        reasoningActive = true;
+      }
+    }
+
+    if (!reasoningActive) {
       body.temperature = req.temperature;
     }
 
-    if (req.jsonMode) {
+    if (req.jsonMode && !reasoningActive) {
       body.response_format = { type: 'json_object' };
     }
+
+    this.logger.debug(`Request body shape: ${Object.keys(body).join(', ')}`);
 
     const bodyStr = JSON.stringify(body);
     const byteSize = Buffer.byteLength(bodyStr, 'utf-8');

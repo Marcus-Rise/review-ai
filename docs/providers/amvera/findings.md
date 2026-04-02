@@ -60,7 +60,17 @@ LLaMA (`/models/llama`) — **removed**, deprecated by Amvera.
 
 **Empirical test** — sending `json_mode: true` causes HTTP 400: `Unknown parameter: 'json_mode'`.
 
-**Decision:** use `response_format: { type: "json_object" }`.
+**Decision:** use `response_format: { type: "json_object" }` for non-reasoning models only (see below).
+
+---
+
+### `response_format` incompatible with reasoning models (gpt-5)
+
+**Empirical test** — sending `response_format: { type: "json_object" }` together with `reasoning_effort` for `gpt-5` causes HTTP 400: `Invalid JSON object in request body`.
+
+**Cause:** Amvera proxy (or underlying OpenAI API) does not support `response_format` with reasoning models. This is consistent with OpenAI's o-series behavior.
+
+**Decision:** skip `response_format` only when `reasoning_effort` is actually sent (i.e. model has `reasoning: true` AND `MODEL_REASONING_EFFORT` is not `none`). When reasoning is disabled via `MODEL_REASONING_EFFORT=none`, `response_format` is safe to include. The system prompt also mandates JSON output as a fallback.
 
 ---
 
@@ -72,7 +82,7 @@ LLaMA (`/models/llama`) — **removed**, deprecated by Amvera.
 
 **Cause:** `gpt-5` is a reasoning model (GPT-5 uses internal chain-of-thought). Without a cap, it exceeds the gateway timeout on real-size code review prompts.
 
-**Decision:** models with `reasoning: true` in config get `reasoning_effort: "low"` instead of `temperature`.
+**Decision:** models with `reasoning: true` in config get `reasoning_effort` instead of `temperature`. Configurable via `MODEL_REASONING_EFFORT` env var (default `low`; set `none` to omit the parameter).
 
 ---
 
@@ -108,8 +118,8 @@ Local models (Ollama) and direct OpenAI API are not affected by these restrictio
 | Parameter | gpt-5 | gpt-4.1 | deepseek/qwen |
 |-----------|-------|---------|---------------|
 | `temperature` | ✗ | ✓ | ✓ |
-| `reasoning_effort: "low"` | ✓ | ✗ | ✗ |
-| `response_format` | when `jsonMode=true` | when `jsonMode=true` | when `jsonMode=true` |
+| `reasoning_effort` | ✓ (configurable) | ✗ | ✗ |
+| `response_format` | ✗ when reasoning active | when `jsonMode=true` | when `jsonMode=true` |
 | messages field | `text` (per spec) | `text` (per spec) | `text` (per spec) |
 
 ## Response parsing
